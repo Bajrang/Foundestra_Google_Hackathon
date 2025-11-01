@@ -11,6 +11,7 @@ import { realtimeDataService } from "./realtime-data.tsx";
 import { semanticSearchService } from "./semantic-search.tsx";
 import { voiceService } from "./voice-service.tsx";
 import { conversationalAI } from "./conversational-ai.tsx";
+import { destinationDataService } from "./destination-data.tsx";
 
 const app = new Hono();
 
@@ -319,10 +320,10 @@ app.get("/make-server-f7922768/test-vertexai", async (c) => {
   }
 });
 
-// AI-powered destination suggestions endpoint
+// AI-powered destination suggestions endpoint with live data and RAG
 app.post("/make-server-f7922768/suggest-destinations", async (c) => {
   try {
-    const { query, userInterests } = await c.req.json();
+    const { query, userInterests, useLiveData = true } = await c.req.json();
     console.log(`Fetching AI suggestions for query: "${query}"`);
 
     if (!query || query.trim().length === 0) {
@@ -334,8 +335,50 @@ app.post("/make-server-f7922768/suggest-destinations", async (c) => {
       });
     }
 
-    // Get AI-powered suggestions from Vertex AI service
-    const suggestions = await vertexAI.getDestinationSuggestions(query, userInterests || []);
+    let suggestions;
+
+    if (useLiveData) {
+      // Try to get live destination data first (fetches from Google Maps + stores in DB)
+      try {
+        const liveData = await destinationDataService.getDestinationData(query);
+        
+        if (liveData && liveData.length > 0) {
+          console.log(`✓ Using live destination data (${liveData.length} results)`);
+          
+          // Format live data for suggestions response
+          suggestions = {
+            query,
+            suggestions: liveData.map(dest => ({
+              name: dest.name,
+              state: dest.state || dest.country,
+              country: dest.country,
+              tags: dest.tags,
+              estimatedCost: dest.travelInfo.estimatedBudget,
+              duration: dest.travelInfo.avgDuration,
+              bestSeason: dest.travelInfo.bestSeason,
+              description: dest.description,
+              highlights: dest.attractions.slice(0, 4).map(a => a.name),
+              coordinates: dest.coordinates,
+              rating: dest.metadata.rating,
+              aiContext: dest.sources.googlePlaceId ? 'live-data' : 'fallback',
+              isAIEnhanced: true,
+              dataSource: 'Google Maps + RAG Storage'
+            })),
+            totalMatches: liveData.length,
+            contextualMessage: `Found ${liveData.length} destinations from live data`,
+            aiPowered: true,
+            liveDataUsed: true
+          };
+
+          return c.json(suggestions);
+        }
+      } catch (liveDataError) {
+        console.warn('Live data fetch failed, falling back to Vertex AI:', liveDataError.message);
+      }
+    }
+
+    // Fallback to Vertex AI suggestions
+    suggestions = await vertexAI.getDestinationSuggestions(query, userInterests || []);
 
     return c.json(suggestions);
 
@@ -346,6 +389,86 @@ app.post("/make-server-f7922768/suggest-destinations", async (c) => {
       suggestions: [], 
       totalMatches: 0,
       error: error.message || 'Failed to fetch suggestions' 
+    }, 500);
+  }
+});
+
+// Live destination data endpoint - Get or fetch destination data
+app.post("/make-server-f7922768/destination-data/fetch", async (c) => {
+  try {
+    const { query } = await c.req.json();
+    
+    if (!query || query.trim().length === 0) {
+      return c.json({ error: 'Query is required' }, 400);
+    }
+
+    console.log(`📍 Fetching destination data for: "${query}"`);
+    const destinations = await destinationDataService.getDestinationData(query);
+
+    return c.json({
+      success: true,
+      query,
+      destinations,
+      count: destinations.length,
+      cached: destinations.length > 0 && destinations[0].sources?.googlePlaceId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Destination data fetch error:', error);
+    return c.json({ 
+      success: false,
+      error: error.message || 'Failed to fetch destination data' 
+    }, 500);
+  }
+});
+
+// RAG search endpoint - Search stored destination data
+app.post("/make-server-f7922768/destination-data/search", async (c) => {
+  try {
+    const { query, filters } = await c.req.json();
+    
+    if (!query || query.trim().length === 0) {
+      return c.json({ error: 'Query is required' }, 400);
+    }
+
+    console.log(`🔍 Searching stored destination data for: "${query}"`);
+    const results = await destinationDataService.searchStoredDestinations(query, filters);
+
+    return c.json({
+      success: true,
+      query,
+      results,
+      count: results.length,
+      filters: filters || {},
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Destination search error:', error);
+    return c.json({ 
+      success: false,
+      error: error.message || 'Failed to search destinations' 
+    }, 500);
+  }
+});
+
+// Get destination data statistics
+app.get("/make-server-f7922768/destination-data/stats", async (c) => {
+  try {
+    const stats = await destinationDataService.getStorageStats();
+
+    return c.json({
+      success: true,
+      stats,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Stats error:', error);
+    return c.json({ 
+      success: false,
+      error: error.message || 'Failed to get stats' 
     }, 500);
   }
 });
