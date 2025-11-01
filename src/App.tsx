@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, Suspense, useCallback } from 'react';
+import React, { useEffect, useMemo, Suspense, useCallback, useState } from 'react';
 import { BookingDialog, BookingData } from './components/BookingDialog';
 import { CompleteBookingDialog, CompleteBookingData } from './components/CompleteBookingDialog';
 import { PlanningPage } from './components/pages/PlanningPage';
 import { GeneratingPage } from './components/pages/GeneratingPage';
 import { ViewingPage } from './components/pages/ViewingPage';
+import { APIStatusPage } from './components/pages/APIStatusPage';
 import { ToastProvider } from './components/ToastProvider';
 import { toast } from 'sonner@2.0.3';
 import { useAppState } from './hooks/useAppState';
@@ -70,6 +71,17 @@ function LoadingFallback() {
 function AppContent() {
   const appState = useAppState();
   const { call: apiCall } = useApiCall();
+  const [showAPIStatus, setShowAPIStatus] = useState(false);
+
+  // Check URL hash for #api-status to show diagnostic page
+  useEffect(() => {
+    const checkHash = () => {
+      setShowAPIStatus(window.location.hash === '#api-status');
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
 
   const {
     state,
@@ -200,6 +212,11 @@ function AppContent() {
       console.error('Weather alert processing error:', error);
     }
   }, [apiCall, setItinerary, addWeatherAlert]);
+
+  // Show API Status page if accessed via #api-status
+  if (showAPIStatus) {
+    return <APIStatusPage />;
+  }
 
   const content = useMemo(() => {
     switch (state) {

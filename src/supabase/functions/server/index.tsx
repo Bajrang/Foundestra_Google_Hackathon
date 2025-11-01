@@ -34,25 +34,287 @@ app.get("/make-server-f7922768/health", (c) => {
   return c.json({ status: "ok" });
 });
 
-// Test Vertex AI OAuth endpoint
+// Vertex AI configuration diagnostics endpoint
+app.get("/make-server-f7922768/vertex-config", async (c) => {
+  const hasServiceAccountKey = !!Deno.env.get('GOOGLE_SERVICE_ACCOUNT_KEY');
+  const hasApiKey = !!Deno.env.get('VERTEX_AI_API_KEY');
+  
+  let projectId = Deno.env.get('GOOGLE_CLOUD_PROJECT') || Deno.env.get('PROJECT_ID') || 'not-set';
+  let serviceAccountName = Deno.env.get('SERVICE_ACCOUNT_NAME') || 'google-hackathon-sa';
+  let serviceAccountEmail = 'not-available';
+  let authMethod = 'none';
+  
+  if (hasServiceAccountKey) {
+    try {
+      const keyData = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_KEY')!);
+      projectId = keyData.project_id || projectId;
+      serviceAccountEmail = keyData.client_email || 'not-available';
+      authMethod = 'service-account';
+    } catch (e) {
+      console.error('Failed to parse service account key:', e);
+    }
+  } else if (hasApiKey) {
+    authMethod = 'api-key';
+  }
+  
+  const diagnostics = {
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environmentVariables: {
+      GOOGLE_CLOUD_PROJECT: Deno.env.get('GOOGLE_CLOUD_PROJECT') ? "✓ Set" : "✗ Not set",
+      PROJECT_ID: Deno.env.get('PROJECT_ID') ? "✓ Set" : "✗ Not set",
+      SERVICE_ACCOUNT_NAME: Deno.env.get('SERVICE_ACCOUNT_NAME') ? "✓ Set" : "✗ Not set (using default)",
+      GOOGLE_SERVICE_ACCOUNT_KEY: hasServiceAccountKey ? "✓ Set" : "✗ Not set",
+      VERTEX_AI_API_KEY: hasApiKey ? "✓ Set" : "✗ Not set"
+    },
+    configuration: {
+      projectId,
+      serviceAccountName,
+      location: "us-central1",
+      serviceAccountEmail,
+      authentication: {
+        current: authMethod,
+        serviceAccount: hasServiceAccountKey ? "✓ Available" : "✗ Not available",
+        apiKey: hasApiKey ? "✓ Available" : "✗ Not available",
+        activeMethod: authMethod === 'service-account' 
+          ? "OAuth2 with Service Account (production)" 
+          : authMethod === 'api-key'
+          ? "API Key (development/testing)"
+          : "None - AI features disabled"
+      },
+      endpoint: {
+        current: authMethod === 'service-account'
+          ? `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/gemini-2.0-flash-exp:generateContent`
+          : authMethod === 'api-key'
+          ? "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
+          : "Not configured",
+        authHeader: authMethod === 'service-account' 
+          ? "Authorization: Bearer {oauth2_token}"
+          : authMethod === 'api-key'
+          ? "API key in URL parameter"
+          : "None"
+      },
+      recommendation: authMethod === 'service-account'
+        ? "✅ Service Account (OAuth2) configured - Production ready!"
+        : authMethod === 'api-key'
+        ? "⚠️ API Key configured - Works but service account recommended for production"
+        : "❌ No credentials configured - Set GOOGLE_SERVICE_ACCOUNT_KEY or VERTEX_AI_API_KEY",
+      nextSteps: authMethod !== 'none' ? [
+        "✓ Credentials configured",
+        "Test connection: GET /test-vertexai",
+        "Try destination search in the app",
+        "Check browser console for AI status"
+      ] : [
+        "Option A (Recommended): Service Account Setup",
+        "1. Run ./setup-vertex-oauth.sh script",
+        "2. Copy generated JSON to GOOGLE_SERVICE_ACCOUNT_KEY",
+        "",
+        "Option B (Quick): API Key Setup", 
+        "1. Visit https://aistudio.google.com/app/apikey",
+        "2. Create API key",
+        "3. Set VERTEX_AI_API_KEY in Supabase"
+      ]
+    },
+    troubleshooting: {
+      commonIssues: authMethod === 'service-account' ? [
+        {
+          issue: "401 Unauthorized",
+          cause: "Invalid service account key or token expired",
+          fix: "Regenerate service account key in Google Cloud Console"
+        },
+        {
+          issue: "403 Permission Denied",
+          cause: "Service account missing required IAM roles",
+          fix: "Run: ./setup-vertex-oauth.sh to grant all required roles"
+        },
+        {
+          issue: "Vertex AI API not enabled",
+          cause: "API not enabled for project",
+          fix: "Enable: gcloud services enable aiplatform.googleapis.com"
+        }
+      ] : authMethod === 'api-key' ? [
+        {
+          issue: "401 Unauthorized",
+          cause: "Invalid API key",
+          fix: "Generate new key at https://aistudio.google.com/app/apikey"
+        },
+        {
+          issue: "403 Permission Denied",
+          cause: "Generative Language API not enabled",
+          fix: "Enable: gcloud services enable generativelanguage.googleapis.com"
+        }
+      ] : [
+        {
+          issue: "No credentials",
+          cause: "Neither GOOGLE_SERVICE_ACCOUNT_KEY nor VERTEX_AI_API_KEY set",
+          fix: "Follow nextSteps above to set up credentials"
+        }
+      ]
+    },
+    requiredRoles: authMethod === 'service-account' ? [
+      "roles/aiplatform.user - Call Vertex AI APIs",
+      "roles/ml.developer - Access ML models",
+      "roles/serviceusage.serviceUsageConsumer - Use Google Cloud services"
+    ] : [],
+    setupScript: {
+      available: true,
+      location: "./setup-vertex-oauth.sh",
+      description: "Automated script to create service account and grant all required permissions"
+    }
+  };
+  
+  return c.json(diagnostics);
+});
+
+// Test Vertex AI endpoint
 app.get("/make-server-f7922768/test-vertexai", async (c) => {
   try {
-    console.log('→ Testing Vertex AI OAuth configuration...');
+    console.log('→ Testing AI configuration...');
+    
+    // Get configuration status first
+    const hasServiceAccountKey = !!Deno.env.get('GOOGLE_SERVICE_ACCOUNT_KEY');
+    const hasApiKey = !!Deno.env.get('VERTEX_AI_API_KEY');
+    
+    if (!hasServiceAccountKey && !hasApiKey) {
+      return c.json({
+        status: "error",
+        message: "No AI credentials configured",
+        instructions: {
+          option_a_recommended: {
+            title: "Service Account (OAuth2) - Production",
+            steps: [
+              "1. Run: ./setup-vertex-oauth.sh",
+              "2. Script will create service account: google-hackathon-sa",
+              "3. Grant all required IAM roles automatically",
+              "4. Generate JSON key",
+              "5. Copy entire JSON to Supabase:",
+              "   → Edge Functions → Settings → Secrets",
+              "   → GOOGLE_SERVICE_ACCOUNT_KEY = {paste JSON}",
+              "6. Also set:",
+              "   → PROJECT_ID = foundestra",
+              "   → SERVICE_ACCOUNT_NAME = google-hackathon-sa",
+              "7. Redeploy edge function"
+            ]
+          },
+          option_b_quick: {
+            title: "API Key - Development/Testing",
+            steps: [
+              "1. Visit: https://aistudio.google.com/app/apikey",
+              "2. Create API key",
+              "3. Set in Supabase:",
+              "   → VERTEX_AI_API_KEY = {your key}",
+              "4. Redeploy edge function"
+            ]
+          }
+        },
+        helpUrl: "Run ./setup-vertex-oauth.sh for automated setup"
+      }, 400);
+    }
     
     // Simple test query
     const testResult = await vertexAI.testConnection();
     
-    return c.json({ 
-      status: "success",
-      message: "Vertex AI OAuth working correctly!",
-      details: testResult
-    });
+    if (testResult.success) {
+      const authMethodDisplay = testResult.authMethod === 'service-account' 
+        ? "Service Account (OAuth2) - Production Ready ✅"
+        : "API Key - Development Mode ⚠️";
+      
+      return c.json({ 
+        status: "success",
+        message: `✅ AI is working correctly with ${authMethodDisplay}`,
+        details: testResult,
+        capabilities: [
+          "✓ Dynamic destination search",
+          "✓ AI-enhanced suggestions",
+          "✓ Personalized recommendations",
+          "✓ Hidden gem discovery",
+          "✓ Intelligent itinerary generation"
+        ],
+        nextSteps: [
+          "Try searching for destinations in the app",
+          "Look for purple 'AI Powered' badges",
+          "Check browser console for AI status logs",
+          ...(testResult.authMethod === 'api-key' ? [
+            "⚠️ Consider upgrading to service account for production"
+          ] : [])
+        ]
+      });
+    } else {
+      const authMethod = testResult.authMethod || 'unknown';
+      
+      return c.json({
+        status: "error",
+        message: "AI test failed",
+        details: testResult,
+        authMethod,
+        commonCauses: authMethod === 'service-account' ? [
+          {
+            issue: "Invalid service account key",
+            solution: "Run ./setup-vertex-oauth.sh to regenerate"
+          },
+          {
+            issue: "Missing IAM roles",
+            solution: "Run ./setup-vertex-oauth.sh to grant all roles automatically"
+          },
+          {
+            issue: "Vertex AI API not enabled",
+            solution: "Run: gcloud services enable aiplatform.googleapis.com"
+          }
+        ] : authMethod === 'api-key' ? [
+          {
+            issue: "Invalid API key",
+            solution: "Generate new key at https://aistudio.google.com/app/apikey"
+          },
+          {
+            issue: "Generative Language API not enabled",
+            solution: "Run: gcloud services enable generativelanguage.googleapis.com"
+          }
+        ] : [
+          {
+            issue: "Unknown error",
+            solution: "Check /vertex-config for detailed diagnostics"
+          }
+        ]
+      }, 500);
+    }
   } catch (error) {
-    console.error('✗ Vertex AI test failed:', error);
+    console.error('✗ AI test failed:', error);
+    
+    // Parse error to provide helpful guidance
+    let guidance = "Check logs for more information.";
+    let helpUrl = "";
+    let quickFix = "";
+    
+    if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
+      guidance = "Authentication failed. Credentials may be invalid or expired.";
+      quickFix = "Run ./setup-vertex-oauth.sh to regenerate credentials";
+      helpUrl = "https://cloud.google.com/iam/docs/service-accounts-create";
+    } else if (error.message?.includes("403") || error.message?.includes("permission")) {
+      guidance = "Permission denied. Service account missing required IAM roles.";
+      quickFix = "Run ./setup-vertex-oauth.sh to grant all required roles";
+      helpUrl = "https://console.cloud.google.com/iam-admin/iam";
+    } else if (error.message?.includes("404")) {
+      guidance = "API endpoint not found. API may not be enabled.";
+      quickFix = "Run: gcloud services enable aiplatform.googleapis.com";
+      helpUrl = "https://console.cloud.google.com/apis/library/aiplatform.googleapis.com";
+    } else if (error.message?.includes("429")) {
+      guidance = "Rate limit exceeded. Wait a moment and try again.";
+      quickFix = "Wait 60 seconds and retry";
+      helpUrl = "https://cloud.google.com/vertex-ai/docs/quotas";
+    }
+    
     return c.json({ 
       status: "error",
       message: error.message,
-      details: "Check logs for more information"
+      guidance,
+      quickFix,
+      helpUrl,
+      fullError: {
+        message: error.message,
+        stack: error.stack?.substring(0, 500)
+      },
+      diagnostics: "GET /vertex-config for detailed configuration check",
+      automatedFix: "Run ./setup-vertex-oauth.sh for complete automated setup"
     }, 500);
   }
 });

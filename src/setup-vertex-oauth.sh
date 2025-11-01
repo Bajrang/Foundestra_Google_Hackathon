@@ -6,9 +6,9 @@
 set -e  # Exit on error
 
 PROJECT_ID="foundestra"
-SERVICE_ACCOUNT_NAME="vertex-ai-service"
+SERVICE_ACCOUNT_NAME="google-hackathon-sa"
 SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
-KEY_FILE="vertex-ai-key.json"
+KEY_FILE="google-hackathon-sa-key.json"
 
 echo "🚀 Setting up Vertex AI OAuth for project: ${PROJECT_ID}"
 echo ""
@@ -27,6 +27,15 @@ echo ""
 echo "📋 Step 1: Setting active project to ${PROJECT_ID}..."
 gcloud config set project ${PROJECT_ID}
 
+# Enable Vertex AI API
+echo ""
+echo "📋 Step 1b: Enabling Vertex AI API..."
+echo "→ Enabling aiplatform.googleapis.com..."
+gcloud services enable aiplatform.googleapis.com --project=${PROJECT_ID} 2>/dev/null || echo "   (API may already be enabled)"
+echo "→ Enabling generativelanguage.googleapis.com (for API key fallback)..."
+gcloud services enable generativelanguage.googleapis.com --project=${PROJECT_ID} 2>/dev/null || echo "   (API may already be enabled)"
+echo "✓ APIs enabled"
+
 # Check if service account already exists
 echo ""
 echo "📋 Step 2: Checking if service account exists..."
@@ -35,19 +44,38 @@ if gcloud iam service-accounts describe ${SERVICE_ACCOUNT_EMAIL} &> /dev/null; t
 else
     echo "→ Creating service account ${SERVICE_ACCOUNT_NAME}..."
     gcloud iam service-accounts create ${SERVICE_ACCOUNT_NAME} \
-        --description="Service account for Vertex AI API access" \
-        --display-name="Vertex AI Service"
+        --description="Service account for Google Hackathon - Vertex AI API access" \
+        --display-name="Google Hackathon Service Account"
     echo "✓ Service account created"
 fi
 
 # Grant necessary IAM permissions
 echo ""
 echo "📋 Step 3: Granting IAM permissions..."
+
+echo "→ Granting roles/aiplatform.user..."
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
     --role="roles/aiplatform.user" \
     --condition=None
-echo "✓ Granted roles/aiplatform.user to service account"
+echo "✓ Granted roles/aiplatform.user"
+
+echo "→ Granting roles/ml.developer..."
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+    --role="roles/ml.developer" \
+    --condition=None
+echo "✓ Granted roles/ml.developer"
+
+echo "→ Granting roles/serviceusage.serviceUsageConsumer..."
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+    --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+    --role="roles/serviceusage.serviceUsageConsumer" \
+    --condition=None
+echo "✓ Granted roles/serviceusage.serviceUsageConsumer"
+
+echo ""
+echo "✓ All IAM permissions granted successfully"
 
 # Create service account key
 echo ""
@@ -87,11 +115,18 @@ echo ""
 echo "1. Go to: Supabase Dashboard → Edge Functions → Settings"
 echo "2. Add these environment variables:"
 echo ""
-echo "   Variable Name: GOOGLE_CLOUD_PROJECT"
+echo "   Variable Name: GOOGLE_CLOUD_PROJECT (or PROJECT_ID)"
 echo "   Value: ${PROJECT_ID}"
+echo ""
+echo "   Variable Name: SERVICE_ACCOUNT_NAME"
+echo "   Value: ${SERVICE_ACCOUNT_NAME}"
 echo ""
 echo "   Variable Name: GOOGLE_SERVICE_ACCOUNT_KEY"
 echo "   Value: [Paste the entire JSON above]"
+echo ""
+echo "   (Optional) For API key fallback:"
+echo "   Variable Name: VERTEX_AI_API_KEY"
+echo "   Value: [Your Gemini API key from https://aistudio.google.com/app/apikey]"
 echo ""
 echo "3. Save and restart your edge function"
 echo ""
@@ -125,3 +160,22 @@ if [ -f ".gitignore" ]; then
         echo "✓ Added ${KEY_FILE} to .gitignore"
     fi
 fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "🧪 VERIFY SETUP (Optional - after configuring Supabase):"
+echo ""
+echo "1. Test IAM roles:"
+echo "   gcloud projects get-iam-policy ${PROJECT_ID} \\"
+echo "     --flatten=\"bindings[].members\" \\"
+echo "     --filter=\"bindings.members:serviceAccount:${SERVICE_ACCOUNT_EMAIL}\""
+echo ""
+echo "2. Verify service account:"
+echo "   gcloud iam service-accounts describe ${SERVICE_ACCOUNT_EMAIL}"
+echo ""
+echo "3. Check enabled APIs:"
+echo "   gcloud services list --enabled | grep -E '(aiplatform|generativelanguage)'"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
