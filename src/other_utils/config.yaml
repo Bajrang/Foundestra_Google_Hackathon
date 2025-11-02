@@ -1,0 +1,16 @@
+api_key: <ADD KEY HERE>
+bigquery:
+  project_id: "foundestra"  # Replace with your project ID
+  dataset_id: "places_data"
+  table_id: "search_results"
+
+search_queries:
+  - "top 100 touristic attractions in andaman and nicobar islands"
+  - "top 100 touristic attractions in karnataka"
+  - "top 100 touristic attractions in kerala"
+  - "top 100 touristic attractions in himachal pradesh and uttrakhand"
+  - "top 100 touristic attractions in odisha and west bengal"
+  - "museums in india"
+  - "best forts in india"
+  - "best flea markets in india"
+  - "oldest temples in india"
