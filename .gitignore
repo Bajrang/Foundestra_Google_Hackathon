@@ -11,6 +11,12 @@ yarn-error.log*
 .vscode/
 *.log
 
+# Ignore Python virtual environments
+venv/
+.venv/
+**/venv/
+**/.venv/
+
 # Ignore OS generated files
 Thumbs.db
 ehthumbs.db
