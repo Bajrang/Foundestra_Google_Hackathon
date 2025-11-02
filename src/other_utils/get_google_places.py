@@ -3,21 +3,28 @@ import json
 from pprint import pprint as pp
 from google.cloud import bigquery
 from datetime import datetime
+import time  # added to support waiting for next_page_token activation
+import yaml  # added to read YAML config files
 
 # Replace with your actual Google Places API key
-API_KEY = "<PUT_YOUR_API_KEY_HERE>"
 BASE_URL = "https://maps.googleapis.com/maps/api/place/"
+
+def load_config(config_file):
+    """Load configuration from a YAML file."""
+    with open(config_file, 'r') as file:
+        return yaml.safe_load(file)
 
 def text_search_places(query, api_key):
     """
-    Performs a text search for places based on a query.
+    Performs a text search for places based on a query and follows pagination
+    to return all results across pages.
 
     Args:
         query (str): The text query to search for (e.g., "restaurants in New York").
         api_key (str): Your Google Places API key.
 
     Returns:
-        dict: A dictionary containing the API response, or None if an error occurs.
+        dict: A dictionary containing combined 'results' and 'status', or None if an error occurs.
     """
     endpoint = "textsearch/json"
     params = {
@@ -26,9 +33,31 @@ def text_search_places(query, api_key):
     }
 
     try:
-        response = requests.get(f"{BASE_URL}{endpoint}", params=params)
-        response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
-        return response.json()
+        combined_results = []
+        seen_place_ids = set()
+
+        while True:
+            response = requests.get(f"{BASE_URL}{endpoint}", params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            # Merge unique results
+            for place in data.get('results', []):
+                pid = place.get('place_id')
+                if pid and pid not in seen_place_ids:
+                    seen_place_ids.add(pid)
+                    combined_results.append(place)
+
+            next_token = data.get('next_page_token')
+            if not next_token:
+                break
+
+            # Next-page tokens may take a short time to become valid.
+            # Wait before requesting the next page.
+            time.sleep(2)
+            params = {"pagetoken": next_token, "key": api_key}
+
+        return {"results": combined_results, "status": "OK"}
     except requests.exceptions.RequestException as e:
         print(f"An error occurred: {e}")
         return None
@@ -93,37 +122,41 @@ def write_to_bigquery(data, project_id, dataset_id, table_id):
 
 
 if __name__ == "__main__":
-    # BigQuery settings
-    PROJECT_ID = "foundestra"  # Replace with your project ID
-    DATASET_ID = "places_data"
-    TABLE_ID = "search_results"
+    # Load configuration
+    config = load_config('config.yaml')  # Load from a YAML config file
+    API_KEY = config['api_key']
+    PROJECT_ID = config['bigquery']['project_id']
+    DATASET_ID = config['bigquery']['dataset_id']
+    TABLE_ID = config['bigquery']['table_id']
+    search_queries = config['search_queries']  # List of search queries
 
-    search_query = "touristic attractions in Kerala"
-    places_data = text_search_places(search_query, API_KEY)
+    for search_query in search_queries:
+        print(f"Searching for: {search_query}")
+        places_data = text_search_places(search_query, API_KEY)
 
-    if places_data:
-        if places_data.get("status") == "OK":
-            print(f"Found {len(places_data.get('results', []))} places")
-            
-            # Write to BigQuery
-            write_to_bigquery(places_data, PROJECT_ID, DATASET_ID, TABLE_ID)
+        if places_data:
+            if places_data.get("status") == "OK":
+                print(f"Found {len(places_data.get('results', []))} places")
+                
+                # Write to BigQuery
+                write_to_bigquery(places_data, PROJECT_ID, DATASET_ID, TABLE_ID)
 
-            # Write results to JSON file
-            output_file = "places_results.json"
-            try:
-                with open(output_file, 'w') as f:
-                    json.dump(places_data, f, indent=2)
-                print(f"Results have been saved to {output_file}")
-            except IOError as e:
-                print(f"Error writing to file: {e}")
+                # Write results to JSON file
+                output_file = f"places_results_{search_query.replace(' ', '_')}.json"
+                try:
+                    with open(output_file, 'w') as f:
+                        json.dump(places_data, f, indent=2)
+                    print(f"Results have been saved to {output_file}")
+                except IOError as e:
+                    print(f"Error writing to file: {e}")
 
-            # Print results to console
-            for place in places_data.get("results", []):
-                pp(place)
-                print("-" * 20)
+                # Print results to console
+                for place in places_data.get("results", []):
+                    pp(place['name'])
+                    print("-" * 20)
+            else:
+                print(f"API returned status: {places_data.get('status')}")
+                print(f"Error message: {places_data.get('error_message', 'No error message provided.')}")
         else:
-            print(f"API returned status: {places_data.get('status')}")
-            print(f"Error message: {places_data.get('error_message', 'No error message provided.')}")
-    else:
-        print("Failed to retrieve places data.")
+            print("Failed to retrieve places data.")
 
