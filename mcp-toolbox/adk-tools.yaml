@@ -1,0 +1,232 @@
+## ADK tools for Agent Development Kit (DB-backed operations)
+## Source definitions reuse existing Cloud SQL source `my-cloud-sql-source`
+
+sources:
+  my-cloud-sql-source:
+    kind: cloud-sql-postgres
+    project: foundestra
+    region: us-central1
+    instance: hoteldb-instance
+    database: postgres
+    user: postgres
+    password: "postgres"
+
+tools:
+  # Itinerary operations
+  get-itinerary-by-id:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Fetch an itinerary by its id
+    parameters:
+      - name: id
+        type: string
+    statement: |
+      SELECT * FROM itinerary WHERE id = $1;
+
+  list-itineraries-by-user:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: List itineraries owned by a user
+    parameters:
+      - name: owner_user_id
+        type: string
+    statement: |
+      SELECT id, title, destination_city_name, start_at_epoch, end_at_epoch, total_cost
+      FROM itinerary
+      WHERE owner_user_id = $1
+      ORDER BY start_at_epoch DESC
+      LIMIT 50;
+
+  create-itinerary:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Insert a new itinerary (minimal fields). Use with caution.
+    parameters:
+      - name: id
+        type: string
+      - name: owner_user_id
+        type: string
+      - name: title
+        type: string
+      - name: description
+        type: string
+      - name: destination_city_name
+        type: string
+      - name: start_at_epoch
+        type: bigint
+      - name: end_at_epoch
+        type: bigint
+      - name: total_cost
+        type: bigint
+    statement: |
+      INSERT INTO itinerary (id, owner_user_id, title, description, destination_city_name, start_at_epoch, end_at_epoch, total_cost)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      RETURNING id;
+
+  # Booking write tool
+  create-booking:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Create a booking entry (minimal). This may need refinement for production.
+    parameters:
+      - name: booking_id
+        type: string
+      - name: user_id
+        type: string
+      - name: itinerary
+        type: string
+      - name: payments
+        type: string
+    statement: |
+      INSERT INTO booking (booking_id, user_id, itinerary, payments)
+      VALUES ($1, $2, $3, string_to_array($4, ','))
+      RETURNING booking_id;
+
+  # Update itinerary metadata (partial update)
+  update-itinerary:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Update itinerary fields (title, description, total_cost) for an id
+    parameters:
+      - name: id
+        type: string
+      - name: title
+        type: string
+      - name: description
+        type: string
+      - name: total_cost
+        type: bigint
+    statement: |
+      UPDATE itinerary
+      SET title = COALESCE(NULLIF($2, ''), title),
+          description = COALESCE(NULLIF($3, ''), description),
+          total_cost = COALESCE($4, total_cost)
+      WHERE id = $1
+      RETURNING id;
+
+  # Add an activity id to itinerary's activities array
+  add-activity-to-itinerary:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Append an activity id to the itinerary's `accomodations` or activity field (example uses `accomodations` as array)
+    parameters:
+      - name: itinerary_id
+        type: string
+      - name: activity_id
+        type: integer
+    statement: |
+      UPDATE itinerary
+      SET accomodations = array_append(accomodations, $2::text)
+      WHERE id = $1
+      RETURNING id, accomodations;
+
+  # Activities & Places
+  search-activities-by-city:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Find activities in a destination city
+    parameters:
+      - name: city
+        type: string
+      - name: limit
+        type: integer
+    statement: |
+      SELECT id, title, description, cost_per_person, booking_url
+      FROM activities
+      WHERE destination_city ILIKE '%' || $1 || '%'
+      ORDER BY cost_per_person ASC
+      LIMIT COALESCE($2, 20);
+
+  get-activity-by-id:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Get activity details
+    parameters:
+      - name: id
+        type: integer
+    statement: |
+      SELECT * FROM activities WHERE id = $1;
+
+  get-accommodations-by-city:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Search accommodations for a city
+    parameters:
+      - name: city
+        type: string
+      - name: max_price
+        type: bigint
+    statement: |
+      SELECT accomodation_id, accomodation_name, location, cost, rating, amenities
+      FROM accomodations
+      WHERE destination_city ILIKE '%' || $1 || '%'
+      AND ($2 IS NULL OR cost <= $2)
+      ORDER BY cost ASC
+      LIMIT 50;
+
+  # Hotels and transport
+  search-hotels-by-city:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: Search hotels in a city
+    parameters:
+      - name: city
+        type: string
+      - name: limit
+        type: integer
+    statement: |
+      SELECT id, name, location, price_tier, checkin_date, checkout_date
+      FROM hotels
+      WHERE location ILIKE '%' || $1 || '%'
+      LIMIT COALESCE($2, 20);
+
+  get-transport-options:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: List transport options for a given route or mode (simple filter)
+    parameters:
+      - name: mode
+        type: string
+      - name: from_epoch
+        type: bigint
+      - name: to_epoch
+        type: bigint
+    statement: |
+      SELECT * FROM transport
+      WHERE ($1 IS NULL OR mode_of_transport ILIKE '%' || $1 || '%')
+      AND departure_time_epoch >= COALESCE($2, 0)
+      AND arrival_time_epoch <= COALESCE($3, 9223372036854775807)
+      LIMIT 50;
+
+  # Itinerary suggestions and analytics (read-only)
+  list-itinerary-suggestions:
+    kind: postgres-sql
+    source: my-cloud-sql-source
+    description: List itinerary suggestions for a city
+    parameters:
+      - name: city
+        type: string
+      - name: limit
+        type: integer
+    statement: |
+      SELECT suggestion_id, title, description, tags, duration_min_days, duration_max_days, total_cost
+      FROM itinerary_suggestions
+      WHERE destination_city_name ILIKE '%' || $1 || '%'
+      LIMIT COALESCE($2, 20);
+
+toolsets:
+  adk_read_only:
+    - get-itinerary-by-id
+    - list-itineraries-by-user
+    - search-activities-by-city
+    - get-accommodations-by-city
+    - search-hotels-by-city
+    - list-itinerary-suggestions
+
+  adk_writes:
+    - create-itinerary
+    - create-booking
+    - update-itinerary
+    - add-activity-to-itinerary
+
+# End of adk-tools.yaml

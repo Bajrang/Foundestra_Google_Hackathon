@@ -22,97 +22,351 @@ tools:
   search-hotels-by-name:
     kind: postgres-sql
     source: my-cloud-sql-source
-    description: Search for hotels based on name.
-    parameters:
-      - name: name
-        type: string
-        description: The name of the hotel.
-    statement: SELECT * FROM hotels WHERE name ILIKE '%' || $1 || '%';
-  search-hotels-by-location:
-    kind: postgres-sql
-    source: my-cloud-sql-source
-    description: Search for hotels based on location.  Result is sorted by price from least to most expensive.
-    parameters:
-      - name: location
-        type: string
-        description: The location of the hotel.
-    statement: |
-      SELECT *
-      FROM hotels
-      WHERE location ILIKE '%' || $1 || '%'
-      ORDER BY
-        CASE price_tier
-          WHEN 'Midscale' THEN 1
-          WHEN 'Upper Midscale' THEN 2
-          WHEN 'Upscale' THEN 3
-          WHEN 'Upper Upscale' THEN 4
-          WHEN 'Luxury' THEN 5
-          ELSE 99 -- Handle any unexpected values, place them at the end
-        END;
+    ```yaml
+    sources:
+      my-cloud-sql-source:
+        kind: cloud-sql-postgres
+        project: foundestra
+        region: us-central1
+        instance: hoteldb-instance
+        database: postgres
+        user: postgres
+        password: "postgres"
 
-    # Credential management tools (store credentials JSON per app)
-    create-credential:
-      kind: postgres-sql
-      source: credentials-db
-      description: Insert a credentials JSON blob for an app_name
-      parameters:
-        - name: app_name
-          type: string
-        - name: credentials_json
-          type: string
-      statement: |
-        INSERT INTO credentials (app_name, credentials_json)
-        VALUES ($1, $2)
-        RETURNING id, created_at;
+      # Source used to store credentials for micro-apps (same Cloud SQL instance)
+      credentials-db:
+        kind: cloud-sql-postgres
+        project: foundestra
+        region: us-central1
+        instance: hoteldb-instance
+        database: postgres
+        user: postgres
+        password: "postgres"
 
-    get-latest-credential:
-      kind: postgres-sql
-      source: credentials-db
-      description: Return the latest credential JSON for an app
-      parameters:
-        - name: app_name
-          type: string
-      statement: |
-        SELECT credentials_json
-        FROM credentials
-        WHERE app_name = $1
-        ORDER BY created_at DESC
-        LIMIT 1;
+    tools:
+      search-hotels-by-name:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Search for hotels based on name.
+        parameters:
+          - name: name
+            type: string
+            description: The name of the hotel.
+        statement: SELECT * FROM hotels WHERE name ILIKE '%' || $1 || '%';
+      search-hotels-by-location:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Search for hotels based on location.  Result is sorted by price from least to most expensive.
+        parameters:
+          - name: location
+            type: string
+            description: The location of the hotel.
+        statement: |
+          SELECT *
+          FROM hotels
+          WHERE location ILIKE '%' || $1 || '%'
+          ORDER BY
+            CASE price_tier
+              WHEN 'Midscale' THEN 1
+              WHEN 'Upper Midscale' THEN 2
+              WHEN 'Upscale' THEN 3
+              WHEN 'Upper Upscale' THEN 4
+              WHEN 'Luxury' THEN 5
+              ELSE 99 -- Handle any unexpected values, place them at the end
+            END;
 
-    # HTTP wrappers for three micro-apps (replace URLs with real endpoints)
-    call-itinerary-generator:
-      kind: http
-      description: Call the itinerary generator microservice (POST /generate)
-      url: "http://itinerary-generator:3000/generate"
-      method: POST
-      headers:
-        Content-Type: application/json
+      # Credential management tools (store credentials JSON per app)
+      create-credential:
+        kind: postgres-sql
+        source: credentials-db
+        description: Insert a credentials JSON blob for an app_name
+        parameters:
+          - name: app_name
+            type: string
+          - name: credentials_json
+            type: string
+        statement: |
+          INSERT INTO credentials (app_name, credentials_json)
+          VALUES ($1, $2)
+          RETURNING id, created_at;
 
-    call-activities-service:
-      kind: http
-      description: Call the activities microservice (POST /recommend)
-      url: "http://activities-service:3000/recommend"
-      method: POST
-      headers:
-        Content-Type: application/json
+      get-latest-credential:
+        kind: postgres-sql
+        source: credentials-db
+        description: Return the latest credential JSON for an app
+        parameters:
+          - name: app_name
+            type: string
+        statement: |
+          SELECT credentials_json
+          FROM credentials
+          WHERE app_name = $1
+          ORDER BY created_at DESC
+          LIMIT 1;
 
-    call-places-service:
-      kind: http
-      description: Call the places microservice (GET /places?query=...)
-      url: "http://places-service:3000/places"
-      method: GET
-      headers:
-        Accept: application/json
+      # HTTP wrappers for three micro-apps (replace URLs with real endpoints)
+      call-itinerary-generator:
+        kind: http
+        description: Call the itinerary generator microservice (POST /generate)
+        url: "http://itinerary-generator:3000/generate"
+        method: POST
+        headers:
+          Content-Type: application/json
 
-toolsets:
-   my_first_toolset:
-     - search-hotels-by-name
-     - search-hotels-by-location
+      call-activities-service:
+        kind: http
+        description: Call the activities microservice (POST /recommend)
+        url: "http://activities-service:3000/recommend"
+        method: POST
+        headers:
+          Content-Type: application/json
 
-   multi_app_toolset:
-     - call-itinerary-generator
-     - call-activities-service
-     - call-places-service
-     - create-credential
-     - get-latest-credential
+      call-places-service:
+        kind: http
+        description: Call the places microservice (GET /places?query=...)
+        url: "http://places-service:3000/places"
+        method: GET
+        headers:
+          Accept: application/json
+
+      # Placeholder credential entries for the three micro-apps. Replace values with real credentials
+      itinerary-credentials:
+        credentials:
+          api_key: "REPLACE_ME_ITINERARY_API_KEY"
+          endpoint: "https://itinerary.example/api"
+
+      activities-credentials:
+        credentials:
+          api_key: "REPLACE_ME_ACTIVITIES_API_KEY"
+          endpoint: "https://activities.example/api"
+
+      places-credentials:
+        credentials:
+          api_key: "REPLACE_ME_PLACES_API_KEY"
+          endpoint: "https://places.example/api"
+
+      # --- ADK tools (merged from adk-tools.yaml) ---
+      get-itinerary-by-id:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Fetch an itinerary by its id
+        parameters:
+          - name: id
+            type: string
+        statement: |
+          SELECT * FROM itinerary WHERE id = $1;
+
+      list-itineraries-by-user:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: List itineraries owned by a user
+        parameters:
+          - name: owner_user_id
+            type: string
+        statement: |
+          SELECT id, title, destination_city_name, start_at_epoch, end_at_epoch, total_cost
+          FROM itinerary
+          WHERE owner_user_id = $1
+          ORDER BY start_at_epoch DESC
+          LIMIT 50;
+
+      create-itinerary:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Insert a new itinerary (minimal fields). Use with caution.
+        parameters:
+          - name: id
+            type: string
+          - name: owner_user_id
+            type: string
+          - name: title
+            type: string
+          - name: description
+            type: string
+          - name: destination_city_name
+            type: string
+          - name: start_at_epoch
+            type: bigint
+          - name: end_at_epoch
+            type: bigint
+          - name: total_cost
+            type: bigint
+        statement: |
+          INSERT INTO itinerary (id, owner_user_id, title, description, destination_city_name, start_at_epoch, end_at_epoch, total_cost)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+          RETURNING id;
+
+      create-booking:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Create a booking entry (minimal). This may need refinement for production.
+        parameters:
+          - name: booking_id
+            type: string
+          - name: user_id
+            type: string
+          - name: itinerary
+            type: string
+          - name: payments
+            type: string
+        statement: |
+          INSERT INTO booking (booking_id, user_id, itinerary, payments)
+          VALUES ($1, $2, $3, string_to_array($4, ','))
+          RETURNING booking_id;
+
+      update-itinerary:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Update itinerary fields (title, description, total_cost) for an id
+        parameters:
+          - name: id
+            type: string
+          - name: title
+            type: string
+          - name: description
+            type: string
+          - name: total_cost
+            type: bigint
+        statement: |
+          UPDATE itinerary
+          SET title = COALESCE(NULLIF($2, ''), title),
+              description = COALESCE(NULLIF($3, ''), description),
+              total_cost = COALESCE($4, total_cost)
+          WHERE id = $1
+          RETURNING id;
+
+      add-activity-to-itinerary:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Append an activity id to the itinerary's `accomodations` or activity field (example uses `accomodations` as array)
+        parameters:
+          - name: itinerary_id
+            type: string
+          - name: activity_id
+            type: integer
+        statement: |
+          UPDATE itinerary
+          SET accomodations = array_append(accomodations, $2::text)
+          WHERE id = $1
+          RETURNING id, accomodations;
+
+      search-activities-by-city:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Find activities in a destination city
+        parameters:
+          - name: city
+            type: string
+          - name: limit
+            type: integer
+        statement: |
+          SELECT id, title, description, cost_per_person, booking_url
+          FROM activities
+          WHERE destination_city ILIKE '%' || $1 || '%'
+          ORDER BY cost_per_person ASC
+          LIMIT COALESCE($2, 20);
+
+      get-activity-by-id:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Get activity details
+        parameters:
+          - name: id
+            type: integer
+        statement: |
+          SELECT * FROM activities WHERE id = $1;
+
+      get-accommodations-by-city:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Search accommodations for a city
+        parameters:
+          - name: city
+            type: string
+          - name: max_price
+            type: bigint
+        statement: |
+          SELECT accomodation_id, accomodation_name, location, cost, rating, amenities
+          FROM accomodations
+          WHERE destination_city ILIKE '%' || $1 || '%'
+          AND ($2 IS NULL OR cost <= $2)
+          ORDER BY cost ASC
+          LIMIT 50;
+
+      search-hotels-by-city:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: Search hotels in a city
+        parameters:
+          - name: city
+            type: string
+          - name: limit
+            type: integer
+        statement: |
+          SELECT id, name, location, price_tier, checkin_date, checkout_date
+          FROM hotels
+          WHERE location ILIKE '%' || $1 || '%'
+          LIMIT COALESCE($2, 20);
+
+      get-transport-options:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: List transport options for a given route or mode (simple filter)
+        parameters:
+          - name: mode
+            type: string
+          - name: from_epoch
+            type: bigint
+          - name: to_epoch
+            type: bigint
+        statement: |
+          SELECT * FROM transport
+          WHERE ($1 IS NULL OR mode_of_transport ILIKE '%' || $1 || '%')
+          AND departure_time_epoch >= COALESCE($2, 0)
+          AND arrival_time_epoch <= COALESCE($3, 9223372036854775807)
+          LIMIT 50;
+
+      list-itinerary-suggestions:
+        kind: postgres-sql
+        source: my-cloud-sql-source
+        description: List itinerary suggestions for a city
+        parameters:
+          - name: city
+            type: string
+          - name: limit
+            type: integer
+        statement: |
+          SELECT suggestion_id, title, description, tags, duration_min_days, duration_max_days, total_cost
+          FROM itinerary_suggestions
+          WHERE destination_city_name ILIKE '%' || $1 || '%'
+          LIMIT COALESCE($2, 20);
+
+    toolsets:
+       my_first_toolset:
+         - search-hotels-by-name
+         - search-hotels-by-location
+
+       multi_app_toolset:
+         - call-itinerary-generator
+         - call-activities-service
+         - call-places-service
+         - create-credential
+         - get-latest-credential
+
+      adk_read_only:
+        - get-itinerary-by-id
+        - list-itineraries-by-user
+        - search-activities-by-city
+        - get-accommodations-by-city
+        - search-hotels-by-city
+        - list-itinerary-suggestions
+
+      adk_writes:
+        - create-itinerary
+        - create-booking
+        - update-itinerary
+        - add-activity-to-itinerary
+
+
+    ```
 
