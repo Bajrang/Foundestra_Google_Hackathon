@@ -1,0 +1,65 @@
+const translations = {
+    en: {
+        accommodation: {
+            luxury: 'Luxury',
+            midRange: 'Mid-Range',
+            budget: 'Budget',
+            hostel: 'Hostel',
+            homeStay: 'Home Stay',
+        },
+        time: {
+            evening: 'Evening',
+            activity: 'Activity',
+            cost: 'Cost',
+            weather: 'Weather',
+        },
+    },
+    hi: {
+        accommodation: {
+            luxury: 'लग्जरी',
+            midRange: 'मध्यम श्रेणी',
+            budget: 'बजट',
+            hostel: 'छात्रावास',
+            homeStay: 'होम स्टे',
+        },
+        time: {
+            evening: 'शाम',
+            activity: 'गतिविधि',
+            cost: 'लागत',
+            weather: 'मौसम',
+        },
+    },
+    kn: {
+        accommodation: {
+            luxury: 'ಐಷಾರಾಮಿ',
+            midRange: 'ಮಧ್ಯಮ ಶ್ರೇಣಿ',
+            budget: 'ಬಜೆಟ್',
+            hostel: 'ಹಾಸ್ಟೆಲ್',
+            homeStay: 'ಹೋಮ್ ಸ್ಟೇ',
+        },
+        time: {
+            evening: 'ಸಂಜೆ',
+            activity: 'ಚಟುವಟಿಕೆ',
+            cost: 'ವೆಚ್ಚ',
+            weather: 'ಹವಾಮಾನ',
+        },
+    },
+    ta: {
+        accommodation: {
+            luxury: 'ஆடம்பரம்',
+            midRange: 'நடுத்தர வரம்பு',
+            budget: 'பட்ஜெட்',
+            hostel: 'விடுதி',
+            homeStay: 'ஹோம் ஸ்டே',
+        },
+        time: {
+            evening: 'மாலை',
+            activity: 'செயல்பாடு',
+            cost: 'செலவு',
+            weather: 'வானிலை',
+        },
+    },
+    // Add other languages here following the same structure
+};
+
+export default translations;

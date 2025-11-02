@@ -32,3 +32,22 @@ coverage/
 
 # Ignore secret JSON files
 google-hackathon-sa-key.json
+
+# Docker-related
+.docker/
+.dockerignore
+docker-compose.override.yml
+**/docker-compose.override.yml
+docker-compose.*.local.yml
+**/docker-compose.*.local.yml
+
+# Local docker build artifacts and exported images
+docker-images/
+*.tar
+*.tar.gz
+*.tgz
+
+# Docker secrets / runtime files
+docker-secrets/
+*.pem
+*.key

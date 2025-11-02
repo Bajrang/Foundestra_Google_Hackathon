@@ -71,7 +71,7 @@ export function GeneratingPage({ currentTripData, selectedLanguage = 'en' }: Gen
             {currentTripData && (
               <div className="p-3 bg-blue-50 rounded-lg text-sm">
                 <p><strong>{t.destination}:</strong> {currentTripData.destination}</p>
-                <p><strong>{t.duration}:</strong> {currentTripData.startDate} to {currentTripData.endDate}</p>
+                <p><strong>{t.tripDuration}:</strong> {currentTripData.startDate} to {currentTripData.endDate}</p>
                 <p><strong>{t.preferences}:</strong> {currentTripData.interests.slice(0, 3).join(', ')}</p>
                 <p><strong>{t.budget}:</strong> ₹{currentTripData.budget.toLocaleString()}</p>
               </div>
