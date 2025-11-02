@@ -13,7 +13,7 @@ Expected OAuth2 access token or other authentication credentials.
 ## ✅ Resolution
 
 ### Root Cause:
-The API key provided (`AQ.Ab8RN6LduBowKN4RwnL-W8iG98mGyleiTDm33QjFE_EeEd4EEA`) is a **Vertex AI key** that requires OAuth2 authentication, not a direct API key for the generativelanguage.googleapis.com endpoint.
+The API key provided (`API PLACE HOLDER KEY`) is a **Vertex AI key** that requires OAuth2 authentication, not a direct API key for the generativelanguage.googleapis.com endpoint.
 
 ### Solution Implemented:
 Created a **robust hybrid system** that gracefully handles API availability:
@@ -45,7 +45,7 @@ Created a **robust hybrid system** that gracefully handles API availability:
 ```typescript
 // Before: Always tried to use AI
 constructor() {
-  this.apiKey = 'AQ.Ab8RN6LduBowKN4RwnL-W8iG98mGyleiTDm33QjFE_EeEd4EEA';
+  this.apiKey = 'API PLACE HOLDER KEY';
   this.geminiEndpoint = 'https://generativelanguage.googleapis.com/...';
 }
 

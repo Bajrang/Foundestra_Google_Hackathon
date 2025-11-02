@@ -9,7 +9,7 @@ We've successfully integrated **Google's Gemini 1.5 Flash AI model** to power tr
 ## 🔑 API Configuration
 
 ### Credentials
-- **API Key:** `AQ.Ab8RN6LduBowKN4RwnL-W8iG98mGyleiTDm33QjFE_EeEd4EEA`
+- **API Key:** `API PLACE HOLDER KEY`
 - **Model:** Gemini 1.5 Flash
 - **Endpoint:** `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`
 

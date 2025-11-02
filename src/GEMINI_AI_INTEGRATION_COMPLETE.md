@@ -335,7 +335,7 @@ curl ... -d '{"query": "wildlife safari", "userInterests": ["photography", "adve
 ### 1. Check API Key is Set
 ```bash
 # In Supabase dashboard → Edge Functions → Settings
-VERTEX_AI_API_KEY=AQ.Ab8RN6LduBowKN4RwnL-W8iG98mGyleiTDm33QjFE_EeEd4EEA
+VERTEX_AI_API_KEY=API PLACE HOLDER KEY
 ```
 
 ### 2. Monitor Logs
