@@ -28,7 +28,7 @@ import {
   Globe
 } from 'lucide-react';
 import { useApiCall } from '../hooks/useApiCall';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface EMTBookingOptions {
   flights: Array<{

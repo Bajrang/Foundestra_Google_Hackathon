@@ -339,7 +339,7 @@ export function AnalyticsDashboard({ isVisible, userRole }: AnalyticsDashboardPr
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value, name) => [
+                  formatter={(value: any, name: any) => [
                     name === 'visits' ? `${value} trips` : 
                     name === 'averageBudget' ? `₹${value.toLocaleString()}` :
                     `${value}/5`,
@@ -371,7 +371,7 @@ export function AnalyticsDashboard({ isVisible, userRole }: AnalyticsDashboardPr
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value, name) => [
+                  formatter={(value: any, name: any) => [
                     name === 'bookings' ? `${value} bookings` : 
                     name === 'revenue' ? `₹${value.toLocaleString()}` :
                     `${value} people`,
@@ -406,7 +406,7 @@ export function AnalyticsDashboard({ isVisible, userRole }: AnalyticsDashboardPr
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ interest, percentage }) => `${interest} (${percentage}%)`}
+                    label={(item: any) => `${item.interest} (${item.percentage}%)`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="popularity"
@@ -580,10 +580,10 @@ export function AnalyticsDashboard({ isVisible, userRole }: AnalyticsDashboardPr
                   <XAxis dataKey="source" />
                   <YAxis />
                   <Tooltip 
-                    formatter={(value, name) => [
-                      name === 'revenue' ? `₹${value.toLocaleString()}` : `${value} bookings`,
-                      name === 'revenue' ? 'Revenue' : 'Bookings'
-                    ]}
+                    formatter={(value: any, name: any) => [
+                        name === 'revenue' ? `₹${value.toLocaleString()}` : `${value} bookings`,
+                        name === 'revenue' ? 'Revenue' : 'Bookings'
+                      ]}
                   />
                   <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
                   <Line type="monotone" dataKey="bookings" stroke="#82ca9d" strokeWidth={2} />

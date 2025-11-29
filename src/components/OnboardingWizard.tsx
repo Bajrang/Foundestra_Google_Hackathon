@@ -27,10 +27,15 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { TripData } from './TripPlanningForm';
+import { Language } from '../utils/translations';
 
 interface OnboardingWizardProps {
   onPlanTrip: (tripData: TripData) => void;
   isGenerating?: boolean;
+  // Optional external hooks
+  onClose?: () => void;
+  onComplete?: (tripData: TripData) => void;
+  selectedLanguage?: Language;
 }
 
 interface WizardStep {
@@ -74,7 +79,7 @@ const interestOptions = [
   { id: 'shopping', label: 'Shopping', labelHindi: 'शॉपिंग', icon: Users, color: 'bg-blue-100 text-blue-700' },
 ];
 
-export function OnboardingWizard({ onPlanTrip, isGenerating = false }: OnboardingWizardProps) {
+export function OnboardingWizard({ onPlanTrip, isGenerating = false, onClose, onComplete, selectedLanguage = 'en' as Language }: OnboardingWizardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -93,7 +98,6 @@ export function OnboardingWizard({ onPlanTrip, isGenerating = false }: Onboardin
     photographyFocus: false
   });
 
-  const selectedLanguage = 'en'; // Default to English for now
   const isHindi = selectedLanguage === 'hi';
 
   const handleNext = () => {
@@ -121,11 +125,24 @@ export function OnboardingWizard({ onPlanTrip, isGenerating = false }: Onboardin
         nightlifeImportance: formData.interests.includes('nightlife') ? 4 : 2,
         mustVisit: '',
         avoidPlaces: '',
+        // Add required fields with defaults
+        currency: 'INR',
+        accessibility: [],
+        groupType: formData.travelers === 1 ? 'solo' : formData.travelers === 2 ? 'couple' : 'group',
+        specialRequests: '',
+        flexibleDates: false,
         language: selectedLanguage,
         bookingPreference: 'review_first'
       };
       
       setIsOpen(false);
+      // notify parent if provided, else use onPlanTrip
+      if (onComplete) {
+        onComplete(tripData);
+      } else {
+        onPlanTrip(tripData);
+      }
+
       setCurrentStep(1);
       setFormData({
         destination: '',
@@ -143,7 +160,6 @@ export function OnboardingWizard({ onPlanTrip, isGenerating = false }: Onboardin
         photographyFocus: false
       });
       
-      onPlanTrip(tripData);
     }
   };
 
@@ -321,8 +337,8 @@ export function OnboardingWizard({ onPlanTrip, isGenerating = false }: Onboardin
                         <Calendar
                           mode="single"
                           selected={formData.startDate}
-                          onSelect={(date) => setFormData(prev => ({ ...prev, startDate: date }))}
-                          disabled={(date) => date < new Date()}
+                          onSelect={(date: Date | undefined) => setFormData(prev => ({ ...prev, startDate: date }))}
+                          disabled={(date: Date) => date < new Date()}
                           initialFocus
                         />
                       </PopoverContent>
@@ -344,8 +360,8 @@ export function OnboardingWizard({ onPlanTrip, isGenerating = false }: Onboardin
                         <Calendar
                           mode="single"
                           selected={formData.endDate}
-                          onSelect={(date) => setFormData(prev => ({ ...prev, endDate: date }))}
-                          disabled={(date) => date < (formData.startDate || new Date())}
+                          onSelect={(date: Date | undefined) => setFormData(prev => ({ ...prev, endDate: date }))}
+                          disabled={(date: Date) => date < (formData.startDate || new Date())}
                           initialFocus
                         />
                       </PopoverContent>

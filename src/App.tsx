@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, Suspense, useCallback, useState } from 'react';
 import { BookingDialog, BookingData } from './components/BookingDialog';
 import { CompleteBookingDialog, CompleteBookingData } from './components/CompleteBookingDialog';
-import { PlanningPage } from './components/pages/PlanningPage';
+import PlanningPage from './components/pages/PlanningPage';
 import { GeneratingPage } from './components/pages/GeneratingPage';
 import { ViewingPage } from './components/pages/ViewingPage';
 import { APIStatusPage } from './components/pages/APIStatusPage';
 import { ToastProvider } from './components/ToastProvider';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useAppState } from './hooks/useAppState';
 import { useApiCall } from './hooks/useApiCall';
 import { TripData } from './components/TripPlanningForm';
@@ -31,10 +31,10 @@ function ErrorFallback() {
 
 // Simple Error Boundary Class
 class SimpleErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  React.PropsWithChildren<{}>,
   { hasError: boolean }
 > {
-  constructor(props: { children: React.ReactNode }) {
+  constructor(props: React.PropsWithChildren<{}>) {
     super(props);
     this.state = { hasError: false };
   }

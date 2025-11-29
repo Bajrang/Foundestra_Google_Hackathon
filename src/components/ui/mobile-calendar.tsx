@@ -170,7 +170,7 @@ export function MobileCalendar({
         <CalendarPrimitive
           mode="single"
           selected={selected}
-          onSelect={(date) => {
+          onSelect={(date: Date | undefined) => {
             onSelect?.(date);
             setOpen(false);
           }}

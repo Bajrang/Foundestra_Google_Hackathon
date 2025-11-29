@@ -322,7 +322,7 @@ export function BookingProgressWidget({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">
-                    {isHtml ? "छूट लागू:" : "Discount Applied:"}
+                      {isHindi ? "छूट लागू:" : "Discount Applied:"}
                   </span>
                   <span className="font-bold text-orange-600">
                     -₹{bookingData.discountApplied?.toLocaleString() || '0'}

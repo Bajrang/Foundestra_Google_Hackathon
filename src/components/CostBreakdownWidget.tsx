@@ -27,7 +27,7 @@ interface CostCategory {
   nameHindi?: string;
   value: number;
   color: string;
-  icon: any;
+  icon: React.ElementType;
   description: string;
   descriptionHindi?: string;
 }
@@ -124,7 +124,7 @@ export function CostBreakdownWidget({ itinerary, selectedLanguage = 'en' }: Cost
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ percentage }) => `${percentage}%`}
+                      label={(entry: any) => `${entry.percentage}%`}
                       outerRadius={100}
                       fill="#8884d8"
                       dataKey="value"
@@ -257,7 +257,10 @@ export function CostBreakdownWidget({ itinerary, selectedLanguage = 'en' }: Cost
     {
       name: 'Shopping & Others',
       nameHindi: 'खरीदारी और अन्य',
-      value: Math.max(0, itinerary.totalCost - (itinerary.transportCost + itinerary.accommodationCost + itinerary.activityCost) - 800 * itinerary.totalDays),
+      value: Math.max(
+        0,
+        itinerary.totalCost - ((itinerary.transportCost || 0) + (itinerary.accommodationCost || 0) + (itinerary.activityCost || 0)) - 800 * itinerary.totalDays
+      ),
       color: COLORS[4],
       icon: ShoppingBag,
       description: 'Souvenirs, miscellaneous expenses',
@@ -338,7 +341,7 @@ export function CostBreakdownWidget({ itinerary, selectedLanguage = 'en' }: Cost
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'total' | 'daily')}>
+          <Tabs value={viewMode} onValueChange={(value: string) => setViewMode(value as 'total' | 'daily')}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="total" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -467,11 +470,11 @@ export function CostBreakdownWidget({ itinerary, selectedLanguage = 'en' }: Cost
                     />
                     <YAxis 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={(value: number) => `₹${(value / 1000).toFixed(0)}k`}
                     />
                     <Tooltip 
                       formatter={(value: any) => [`₹${value.toLocaleString()}`, isHindi ? "लागत" : "Cost"]}
-                      labelFormatter={(label) => `${label}`}
+                      labelFormatter={(label: any) => `${label}`}
                     />
                     <Line 
                       type="monotone" 

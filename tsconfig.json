@@ -16,5 +16,11 @@
     "noEmit": true,
     "types": ["vite/client", "react", "react-dom"]
   },
-  "include": ["src", "*.ts", "*.tsx", "src/**/*.d.ts"]
+  "include": ["src", "*.ts", "*.tsx", "src/**/*.d.ts"],
+  "exclude": [
+    "node_modules",
+    "build",
+    "src/supabase/functions/server/**",
+    "src/supabase/functions/**"
+  ]
 }

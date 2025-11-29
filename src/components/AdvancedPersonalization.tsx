@@ -408,9 +408,9 @@ export function AdvancedPersonalization({
                 <div className="font-medium">{item.label}</div>
                 <div className="text-sm text-gray-600">{item.desc}</div>
               </div>
-              <Switch
+                <Switch
                 checked={profile.accessibilityNeeds[item.key as keyof typeof profile.accessibilityNeeds] as boolean}
-                onCheckedChange={(checked) => updateProfile('accessibilityNeeds', { [item.key]: checked })}
+                onCheckedChange={(checked: boolean) => updateProfile('accessibilityNeeds', { [item.key]: checked })}
               />
             </div>
           ))}
@@ -452,7 +452,7 @@ export function AdvancedPersonalization({
           </div>
           <Switch
             checked={profile.accessibilityNeeds.medicationReminders}
-            onCheckedChange={(checked) => updateProfile('accessibilityNeeds', { medicationReminders: checked })}
+            onCheckedChange={(checked: boolean) => updateProfile('accessibilityNeeds', { medicationReminders: checked })}
           />
         </div>
       </div>
@@ -699,9 +699,9 @@ export function AdvancedPersonalization({
                 </div>
               </div>
               <Switch
-                checked={profile.aiPersonalization[feature.key as keyof typeof profile.aiPersonalization]}
-                onCheckedChange={(checked) => updateProfile('aiPersonalization', { [feature.key]: checked })}
-              />
+                  checked={profile.aiPersonalization[feature.key as keyof typeof profile.aiPersonalization]}
+                  onCheckedChange={(checked: boolean) => updateProfile('aiPersonalization', { [feature.key]: checked })}
+                />
             </div>
           </Card>
         ))}

@@ -19,7 +19,7 @@ import {
   ExternalLink,
   Info
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface POI {
   id: string;
@@ -209,7 +209,7 @@ export function SemanticPOIDiscovery({
     }
   };
 
-  const POICard = ({ result }: { result: SearchResult }) => {
+  const POICard = ({ result }: { result: SearchResult; key?: React.Key }) => {
     const { poi, similarity_score, relevance_reason, matched_aspects } = result;
     
     return (
@@ -393,7 +393,9 @@ export function SemanticPOIDiscovery({
               {searchResults.length > 0 ? (
                 <div className="space-y-3 pr-4">
                   {searchResults.map((result, idx) => (
-                    <POICard key={idx} result={result} />
+                    <div key={idx}>
+                      <POICard result={result} />
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -436,7 +438,9 @@ export function SemanticPOIDiscovery({
               {hiddenGems.length > 0 ? (
                 <div className="space-y-3 pr-4">
                   {hiddenGems.map((result, idx) => (
-                    <POICard key={idx} result={result} />
+                    <div key={idx}>
+                      <POICard result={result} />
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -479,7 +483,9 @@ export function SemanticPOIDiscovery({
               {personalizedRecs.length > 0 ? (
                 <div className="space-y-3 pr-4">
                   {personalizedRecs.map((result, idx) => (
-                    <POICard key={idx} result={result} />
+                    <div key={idx}>
+                      <POICard result={result} />
+                    </div>
                   ))}
                 </div>
               ) : (

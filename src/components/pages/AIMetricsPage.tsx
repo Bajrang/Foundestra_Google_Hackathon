@@ -1,13 +1,14 @@
 import React from 'react';
 import { AIMetricsDashboard } from '../AIMetricsDashboard';
 import { LanguageSelector } from '../LanguageSelector';
+import { Language } from '../../utils/translations';
 import { Button } from '../ui/button';
 import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface AIMetricsPageProps {
-  selectedLanguage: string;
-  onLanguageChange: (language: string) => void;
+  selectedLanguage: Language;
+  onLanguageChange: (language: Language) => void;
   onBack?: () => void;
 }
 

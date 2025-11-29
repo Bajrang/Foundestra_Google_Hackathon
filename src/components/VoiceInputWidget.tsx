@@ -4,7 +4,7 @@ import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Mic, MicOff, Volume2, Loader2, Check, AlertCircle, Languages } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface VoiceInputWidgetProps {
   onTranscript: (transcript: string, intent?: any) => void;
@@ -29,8 +29,8 @@ export function VoiceInputWidget({
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const animationFrameRef = useRef<number>();
-  const durationIntervalRef = useRef<NodeJS.Timeout>();
+  const animationFrameRef = useRef<number | null>(null);
+  const durationIntervalRef = useRef<number | null>(null);
 
   const supportedLanguages = [
     { code: 'en-IN', name: 'English', flag: '🇮🇳' },
@@ -77,7 +77,7 @@ export function VoiceInputWidget({
       setRecordingDuration(0);
       
       // Start duration counter
-      durationIntervalRef.current = setInterval(() => {
+      durationIntervalRef.current = window.setInterval(() => {
         setRecordingDuration(prev => prev + 0.1);
       }, 100);
       
@@ -105,10 +105,10 @@ export function VoiceInputWidget({
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      if (durationIntervalRef.current) {
+      if (durationIntervalRef.current != null) {
         clearInterval(durationIntervalRef.current);
       }
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current != null) {
         cancelAnimationFrame(animationFrameRef.current);
       }
       setAudioLevel(0);
@@ -188,7 +188,7 @@ export function VoiceInputWidget({
             <Languages className="w-4 h-4 text-gray-400" />
             <select
               value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedLanguage(e.target.value)}
               className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-400"
               disabled={isRecording || isProcessing}
             >

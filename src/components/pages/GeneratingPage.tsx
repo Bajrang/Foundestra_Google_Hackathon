@@ -11,11 +11,7 @@ interface GeneratingPageProps {
   selectedLanguage?: Language;
 }
 
-const GeneratingStep = ({ completed, active, text }: {
-  completed: boolean;
-  active: boolean;
-  text: string;
-}) => (
+const GeneratingStep: React.FC<{ completed: boolean; active: boolean; text: string }> = ({ completed, active, text }) => (
   <div className="flex items-center gap-3">
     <div className={`w-2 h-2 rounded-full ${
       completed ? 'bg-green-500' : 
@@ -33,7 +29,7 @@ export function GeneratingPage({ currentTripData, selectedLanguage = 'en' }: Gen
     { text: t.analyzingPreferences, completed: true },
     { text: t.fetchingWeather, completed: true },
     { text: t.discoveringActivities, completed: true },
-    { text: t.optimizingRoute, active: true },
+    { text: t.optimizingRoute, active: true, completed: false },
     { text: t.finalizingPlan, completed: false }
   ];
 
@@ -59,12 +55,13 @@ export function GeneratingPage({ currentTripData, selectedLanguage = 'en' }: Gen
             
             <div className="space-y-3 text-sm text-gray-500">
               {steps.map((step, index) => (
-                <GeneratingStep 
-                  key={index}
-                  completed={step.completed}
-                  active={step.active || false}
-                  text={step.text}
-                />
+                <div key={index}>
+                  <GeneratingStep 
+                    completed={step.completed}
+                    active={step.active || false}
+                    text={step.text}
+                  />
+                </div>
               ))}
             </div>
 

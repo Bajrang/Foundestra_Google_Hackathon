@@ -15,6 +15,8 @@ interface CustomCalendarProps {
   disabled?: (date: Date) => boolean;
   placeholder?: string;
   className?: string;
+  // whether the calendar should open initially / receive focus on mount
+  initialFocus?: boolean;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -144,7 +146,8 @@ export function CustomCalendar({
   onSelect,
   disabled,
   placeholder = "Select date",
-  className
+  className,
+  initialFocus,
 }: CustomCalendarProps) {
   const [open, setOpen] = React.useState(false);
   const [tempSelected, setTempSelected] = React.useState<Date | undefined>(selected);
@@ -163,6 +166,10 @@ export function CustomCalendar({
       setOpen(false);
     }
   };
+
+  React.useEffect(() => {
+    if (initialFocus) setOpen(true);
+  }, [initialFocus]);
 
   const handleConfirm = () => {
     onSelect?.(tempSelected);

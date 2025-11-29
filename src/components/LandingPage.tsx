@@ -22,6 +22,7 @@ import {
 import { TripData } from './TripPlanningForm';
 import { OnboardingWizard } from './OnboardingWizard';
 import { LanguageSelector } from './LanguageSelector';
+import { Language } from '../utils/translations';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface LandingPageProps {
@@ -31,7 +32,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onPlanTrip, isGenerating }: LandingPageProps) {
   const [showWizard, setShowWizard] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>('en');
 
   const sampleItineraries = [
     {
@@ -148,7 +149,7 @@ export function LandingPage({ onPlanTrip, isGenerating }: LandingPageProps) {
           <span className="text-xl font-bold text-gray-900">TravelAI</span>
         </div>
         <LanguageSelector 
-          selectedLanguage={selectedLanguage}
+          selectedLanguage={selectedLanguage as Language}
           onLanguageChange={setSelectedLanguage}
         />
       </nav>
@@ -370,6 +371,7 @@ export function LandingPage({ onPlanTrip, isGenerating }: LandingPageProps) {
         <OnboardingWizard 
           onClose={() => setShowWizard(false)}
           onComplete={onPlanTrip}
+          onPlanTrip={onPlanTrip}
           selectedLanguage={selectedLanguage}
         />
       )}

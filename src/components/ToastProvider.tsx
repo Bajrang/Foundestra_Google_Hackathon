@@ -9,7 +9,7 @@ const ToastContext = createContext<{
 });
 
 interface ToastProviderProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export function ToastProvider({ children }: ToastProviderProps) {
