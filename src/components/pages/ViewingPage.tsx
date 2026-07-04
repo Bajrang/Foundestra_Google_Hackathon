@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
-import { ArrowLeft, Globe, AlertTriangle, Zap, Brain, BarChart3, Plane } from 'lucide-react';
+import { ArrowLeft, Globe, AlertTriangle, Zap, Brain, BarChart3, Plane, MapPin, Calendar, IndianRupee, Users, Sparkles, Target } from 'lucide-react';
 import { TripData } from '../TripPlanningForm';
 import { Language } from '../../utils/translations';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -45,7 +45,9 @@ export function ViewingPage({
   selectedLanguage = 'en'
 }: ViewingPageProps) {
   const t = useTranslation(selectedLanguage);
-  
+  const destination = itinerary?.destination || currentTripData?.destination || 'your destination';
+  const interests = currentTripData?.interests || [];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-6">
@@ -61,10 +63,11 @@ export function ViewingPage({
           
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Your Personalized Itinerary
+              {destination} Itinerary
             </h1>
             <p className="text-gray-600">
-              AI-generated travel plan with real-time updates and one-click booking
+              {itinerary?.totalDays || 0}-day personalized plan
+              {interests.length > 0 && ` focused on ${interests.join(', ')}`}
             </p>
             {itinerary?.language && itinerary.language !== 'en' && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -76,6 +79,55 @@ export function ViewingPage({
           
           <div></div> {/* Spacer for flex layout */}
         </div>
+
+        {currentTripData && itinerary && (
+          <Card className="mb-8 border-purple-200 bg-gradient-to-r from-purple-50/80 to-blue-50/80">
+            <CardContent className="flex flex-wrap items-center gap-6 p-5">
+              <div className="flex items-center gap-2 text-gray-800">
+                <MapPin className="h-5 w-5 text-purple-600" />
+                <span className="font-semibold">{destination}</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700">
+                <Calendar className="h-4 w-4 text-blue-600" />
+                <span className="text-sm">{currentTripData.startDate} → {currentTripData.endDate}</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700">
+                <Users className="h-4 w-4 text-green-600" />
+                <span className="text-sm">{currentTripData.travelers} traveler{currentTripData.travelers > 1 ? 's' : ''}</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700">
+                <IndianRupee className="h-4 w-4 text-amber-600" />
+                <span className="text-sm">₹{currentTripData.budget.toLocaleString()} budget</span>
+              </div>
+              {currentTripData.travelStyle && (
+                <div className="flex items-center gap-2 text-gray-700">
+                  <Zap className="h-4 w-4 text-blue-600" />
+                  <Badge variant="outline" className="capitalize bg-white/80">
+                    {currentTripData.travelStyle} pace
+                  </Badge>
+                </div>
+              )}
+              {currentTripData.priorityType && (
+                <div className="flex items-center gap-2 text-gray-700">
+                  <Target className="h-4 w-4 text-purple-600" />
+                  <Badge variant="outline" className="capitalize bg-white/80">
+                    {currentTripData.priorityType}-focused
+                  </Badge>
+                </div>
+              )}
+              {interests.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-500" />
+                  {interests.map((interest) => (
+                    <Badge key={interest} variant="secondary" className="capitalize bg-white/80">
+                      {interest.replace('-', ' ')}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="itinerary" className="w-full">
           <TabsList className="grid w-full grid-cols-6 mb-8">

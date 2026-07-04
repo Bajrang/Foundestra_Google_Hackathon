@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SmartInputWizard } from '../SmartInputWizard';
 import { LanguageSelector } from '../LanguageSelector';
 import { CostBreakdownWidget } from '../CostBreakdownWidget';
@@ -110,6 +110,7 @@ const TestimonialCard: React.FC<{ rating: number; review: string; author: string
 
 export default function PlanningPage({ selectedLanguage, onLanguageChange, onPlanTrip, isGenerating }: PlanningPageProps) {
   const t = useTranslation(selectedLanguage);
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   const features = [
     {
@@ -234,11 +235,32 @@ export default function PlanningPage({ selectedLanguage, onLanguageChange, onPla
         </div>
       </header>
 
-      <main className="py-12 px-6">
-        <div className="max-w-6xl mx-auto">
-          <SmartInputWizard onPlanTrip={onPlanTrip} isGenerating={isGenerating} selectedLanguage={selectedLanguage} />
+      <main className="relative px-6 py-12">
+        {isSearchActive && (
+          <div
+            className="fixed inset-0 z-30 bg-slate-900/20 backdrop-blur-[1px]"
+            aria-hidden="true"
+          />
+        )}
 
-          <section className="mt-12">
+        <div className="relative z-10 mx-auto max-w-6xl">
+          <div className="relative z-40">
+            <SmartInputWizard
+              onPlanTrip={onPlanTrip}
+              isGenerating={isGenerating}
+              selectedLanguage={selectedLanguage}
+              onSearchActiveChange={setIsSearchActive}
+            />
+          </div>
+
+          <section
+            className={`mt-12 transition-all duration-300 ${
+              isSearchActive
+                ? 'pointer-events-none max-h-0 overflow-hidden opacity-0'
+                : 'max-h-none opacity-100'
+            }`}
+            aria-hidden={isSearchActive}
+          >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
               {features.map((f, idx) => (
                 <div key={idx}>
@@ -276,10 +298,17 @@ export default function PlanningPage({ selectedLanguage, onLanguageChange, onPla
             </div>
           </section>
 
-          <section className="py-20 px-6 bg-white/50">
-            <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Loved by travelers across India</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <section
+            className={`bg-white/50 px-6 py-20 transition-all duration-300 ${
+              isSearchActive
+                ? 'pointer-events-none max-h-0 overflow-hidden py-0 opacity-0'
+                : 'opacity-100'
+            }`}
+            aria-hidden={isSearchActive}
+          >
+            <div className="mx-auto max-w-6xl">
+              <h2 className="mb-4 text-3xl font-bold text-gray-900">Loved by travelers across India</h2>
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
                 {testimonials.map((tst, i) => (
                   <div key={i}>
                     <TestimonialCard rating={tst.rating} review={tst.review} author={tst.author} details={tst.details} />

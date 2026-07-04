@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -41,12 +41,91 @@ import { format } from 'date-fns';
 import { TripData } from './TripPlanningForm';
 import { Language } from '../utils/translations';
 import { useTranslation } from '../hooks/useTranslation';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { publicAnonKey } from '../utils/supabase/info';
+import { getApiUrl } from '../utils/api';
 
 interface SmartInputWizardProps {
   onPlanTrip: (tripData: TripData) => void;
   isGenerating?: boolean;
   selectedLanguage?: Language;
+  onSearchActiveChange?: (active: boolean) => void;
+}
+
+interface DestinationSuggestion {
+  name: string;
+  state?: string;
+  description?: string;
+  tags?: string[];
+  estimatedCost?: number;
+  duration?: string;
+  bestSeason?: string;
+  isAIEnhanced?: boolean;
+  aiReason?: string;
+  aiInsight?: string;
+  coordinates?: { lat: number; lon: number };
+  googlePlaceId?: string;
+  highlights?: string[];
+  dataSource?: string;
+}
+
+interface DestinationMeta {
+  state?: string;
+  coordinates?: { lat: number; lon: number };
+  googlePlaceId?: string;
+  tags?: string[];
+  highlights?: string[];
+  dataSource?: string;
+}
+
+function DestinationSuggestionRow({
+  dest,
+  onSelect,
+}: {
+  dest: DestinationSuggestion;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="w-full flex items-start gap-3 rounded-lg border border-gray-100 bg-white p-3 text-left transition-colors hover:border-purple-200 hover:bg-purple-50/60 focus:outline-none focus:ring-2 focus:ring-purple-300"
+    >
+      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-100">
+        <MapPin className="h-4 w-4 text-purple-600" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium text-gray-900">
+            {dest.name}
+            {dest.state ? `, ${dest.state}` : ''}
+          </span>
+          {dest.isAIEnhanced && (
+            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-purple-100 text-purple-700">
+              AI
+            </Badge>
+          )}
+        </div>
+        {dest.description && (
+          <p className="mt-0.5 line-clamp-1 text-sm text-gray-500">{dest.description}</p>
+        )}
+        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+          {dest.duration && (
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {dest.duration}
+            </span>
+          )}
+          {dest.estimatedCost != null && (
+            <span className="inline-flex items-center gap-1">
+              <IndianRupee className="h-3 w-3" />
+              {dest.estimatedCost.toLocaleString()}
+            </span>
+          )}
+          {dest.bestSeason && <span>{dest.bestSeason}</span>}
+        </div>
+      </div>
+    </button>
+  );
 }
 
 interface AISuggestion {
@@ -88,11 +167,12 @@ const interestOptions = [
   { id: 'shopping', label: 'Shopping & Markets', icon: Users, color: 'bg-indigo-100 text-indigo-700', description: 'Local markets and shopping experiences' },
 ];
 
-export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLanguage = 'en' }: SmartInputWizardProps) {
+export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLanguage = 'en', onSearchActiveChange }: SmartInputWizardProps) {
   const t = useTranslation(selectedLanguage);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     destination: '',
+    destinationMeta: null as DestinationMeta | null,
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
     budget: 25000,
@@ -115,6 +195,52 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState('');
+  const [suggestionsSource, setSuggestionsSource] = useState('');
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const isSearchPanelOpen = showSuggestions && searchQuery.trim().length >= 2;
+
+  useEffect(() => {
+    onSearchActiveChange?.(isSearchPanelOpen || isLoadingSuggestions);
+  }, [isSearchPanelOpen, isLoadingSuggestions, onSearchActiveChange]);
+
+  useEffect(() => {
+    if (!isSearchPanelOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowSuggestions(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isSearchPanelOpen]);
+
+  const selectDestination = useCallback((dest: DestinationSuggestion | string) => {
+    const name = typeof dest === 'string' ? dest : dest.name;
+    const meta: DestinationMeta | null = typeof dest === 'string' ? null : {
+      state: dest.state,
+      coordinates: dest.coordinates,
+      googlePlaceId: dest.googlePlaceId,
+      tags: dest.tags,
+      highlights: dest.highlights,
+      dataSource: dest.dataSource,
+    };
+    setFormData((prev) => ({ ...prev, destination: name, destinationMeta: meta }));
+    setSearchQuery(name);
+    setShowSuggestions(false);
+    setAiSuggestions([]);
+    setSuggestionsError('');
+  }, []);
 
   // Fetch AI-powered destination suggestions from the backend
   const fetchAISuggestions = async (query: string) => {
@@ -128,7 +254,7 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f7922768/suggest-destinations`,
+        getApiUrl('suggest-destinations'),
         {
           method: 'POST',
           headers: {
@@ -147,10 +273,17 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
       }
 
       const data = await response.json();
+      if (data.error && (!data.suggestions || data.suggestions.length === 0)) {
+        throw new Error(data.error);
+      }
       setAiSuggestions(data.suggestions || []);
+      setSuggestionsSource(data.dataSource || (data.aiPowered ? 'Vertex AI Gemini' : ''));
+      if (data.dataSource && data.liveDataUsed) {
+        setSuggestionsError('');
+      }
     } catch (error) {
       console.error('Error fetching AI suggestions:', error);
-      setSuggestionsError('Failed to load suggestions');
+      setSuggestionsError(error instanceof Error ? error.message : 'Failed to load live suggestions');
       setAiSuggestions([]);
     } finally {
       setIsLoadingSuggestions(false);
@@ -276,6 +409,7 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
       // Convert to TripData format and submit
       const tripData: TripData = {
         destination: formData.destination,
+        destinationMeta: formData.destinationMeta || undefined,
         startDate: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : '',
         endDate: formData.endDate ? format(formData.endDate, 'yyyy-MM-dd') : '',
         budget: formData.budget,
@@ -285,7 +419,7 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
         interests: formData.interests,
         travelStyle: formData.travelStyle,
         accommodationType: formData.priorityType === 'budget' ? 'budget' : formData.priorityType === 'comfort' ? 'luxury' : 'hotel',
-        transportPreference: ['train', 'car'],
+        transportPreference: formData.priorityType === 'comfort' ? ['flight', 'car'] : formData.priorityType === 'budget' ? ['train'] : ['train', 'car'],
         mealPreferences: ['local'],
         accessibility: [],
         priorityType: formData.priorityType,
@@ -331,7 +465,7 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
   return (
     <div className="space-y-8">
       {/* Smart Input Wizard */}
-      <Card className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+      <Card className={`max-w-4xl mx-auto bg-white/95 backdrop-blur-sm border-0 shadow-2xl ${isSearchPanelOpen ? 'relative z-40' : ''}`}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -360,7 +494,7 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
               </div>
 
               {/* Smart Destination Input */}
-              <div className="space-y-4">
+              <div ref={searchContainerRef} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-lg font-medium">{t.destination}</Label>
                   <Badge variant="secondary" className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700">
@@ -368,241 +502,127 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
                     AI Powered
                   </Badge>
                 </div>
+
                 <div className="relative">
-                  <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                   {isLoadingSuggestions && (
-                    <div className="absolute right-4 top-4">
-                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent"></div>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-purple-600 border-t-transparent" />
                     </div>
                   )}
                   <Input
                     placeholder={t.destinationPlaceholder}
                     value={searchQuery}
                     onChange={(e) => {
-                      setSearchQuery(e.target.value);
+                      const value = e.target.value;
+                      setSearchQuery(value);
+                      setFormData((prev) => ({ ...prev, destination: value, destinationMeta: null }));
                       setShowSuggestions(true);
                     }}
                     onFocus={() => setShowSuggestions(true)}
-                    className="pl-12 pr-12 text-lg h-14 border-2 border-gray-200 focus:border-purple-400 transition-all duration-200"
+                    className="h-14 border-2 border-gray-200 pl-12 pr-12 text-lg transition-all duration-200 focus:border-purple-400"
+                    autoComplete="off"
                   />
-                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-purple-500" />
-                    Try searching by city name, interest (beaches, heritage), or activity (trekking, nightlife)
-                  </p>
-                  
-                  {/* AI-Powered Suggestions Dropdown */}
-                  {showSuggestions && (searchQuery || formData.interests.length > 0) && (
-                    <Card className="absolute z-10 w-full mt-2 shadow-xl border-2 border-purple-200 max-h-[500px] overflow-y-auto">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm text-gray-600">Search results</div>
-                            {!isLoadingSuggestions && aiSuggestions.length > 0 && aiSuggestions.some((s: any) => s.isAIEnhanced) && (
-                              <Badge variant="secondary" className="text-xs bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700">
-                                <Sparkles className="w-3 h-3 mr-1" />
-                                Vertex AI
-                              </Badge>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setShowSuggestions(false);
-                              setSearchQuery('');
-                            }}
-                            className="h-6 w-6 p-0"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <div className="space-y-3">
-                          {searchQuery && (
-                            <>
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-sm font-medium text-purple-600">
-                                  <Sparkles className={`w-4 h-4 ${isLoadingSuggestions ? 'animate-pulse' : ''}`} />
-                                  {isLoadingSuggestions ? 'AI is thinking...' : `Smart suggestions for "${searchQuery}"`}
-                                </div>
-                              </div>
-                              
-                              {isLoadingSuggestions && (
-                                <div className="flex flex-col items-center justify-center py-8 gap-3">
-                                  <div className="relative">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600"></div>
-                                    <Sparkles className="w-6 h-6 text-purple-600 absolute top-3 left-3 animate-pulse" />
-                                  </div>
-                                  <div className="text-sm text-purple-600 font-medium">Vertex AI is analyzing destinations...</div>
-                                </div>
-                              )}
-                              
-                              {!isLoadingSuggestions && suggestionsError && (
-                                <div className="text-sm text-amber-600 py-2 bg-amber-50 px-3 rounded-lg flex items-center gap-2">
-                                  <Lightbulb className="w-4 h-4" />
-                                  {suggestionsError} - Showing database results
-                                </div>
-                              )}
-                              
-                              {!isLoadingSuggestions && !suggestionsError && aiSuggestions.length > 0 && (
-                                <div className="grid gap-2">
-                                  {aiSuggestions.map((dest, index) => (
-                                    <Button
-                                      key={index}
-                                      variant="ghost"
-                                      className={`justify-start h-auto p-4 text-left transition-all duration-200 ${
-                                        dest.isAIEnhanced 
-                                          ? 'hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 border-l-4 border-l-purple-400' 
-                                          : 'hover:bg-purple-50'
-                                      }`}
-                                      onClick={() => {
-                                        setFormData(prev => ({ ...prev, destination: dest.name }));
-                                        setSearchQuery('');
-                                        setShowSuggestions(false);
-                                        setAiSuggestions([]);
-                                      }}
-                                    >
-                                      <div className="flex items-start gap-3 w-full">
-                                        <div className="relative flex-shrink-0">
-                                          <MapPin className={`w-5 h-5 mt-1 ${dest.isAIEnhanced ? 'text-purple-600' : 'text-purple-500'}`} />
-                                          {dest.isAIEnhanced && (
-                                            <Sparkles className="w-3 h-3 text-pink-500 absolute -top-1 -right-1 animate-pulse" />
-                                          )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            <div className="font-semibold text-base">{dest.name}, {dest.state}</div>
-                                            {dest.isAIEnhanced && (
-                                              <Badge variant="secondary" className="text-xs bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border border-purple-200">
-                                                <Sparkles className="w-3 h-3 mr-1" />
-                                                Vertex AI
-                                              </Badge>
-                                            )}
-                                            {!dest.isAIEnhanced && dest.aiInsight && (
-                                              <Badge variant="secondary" className="text-xs bg-gradient-to-r from-green-100 to-emerald-100 text-green-700">
-                                                <Sparkles className="w-3 h-3 mr-1" />
-                                                Smart Match
-                                              </Badge>
-                                            )}
-                                          </div>
-                                          <div className="text-sm text-gray-700 mb-2 leading-relaxed">{dest.description}</div>
-                                          <div className="flex flex-wrap gap-1 mb-2">
-                                            {dest.tags.slice(0, 4).map((tag: string, tagIndex: number) => (
-                                              <Badge key={tagIndex} variant="outline" className="text-xs">
-                                                {tag}
-                                              </Badge>
-                                            ))}
-                                          </div>
-                                          <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                                            <span className="flex items-center gap-1">
-                                              <Clock className="w-3 h-3" />
-                                              {dest.duration}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                              <IndianRupee className="w-3 h-3" />
-                                              {dest.estimatedCost.toLocaleString()}
-                                            </span>
-                                            <span className="text-purple-600">{dest.bestSeason}</span>
-                                          </div>
-                                          {dest.aiReason && (
-                                            <div className="text-xs text-purple-700 mt-2 bg-purple-50 p-2 rounded-lg flex items-start gap-2 border border-purple-100">
-                                              <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                              <span className="font-medium">{dest.aiReason}</span>
-                                            </div>
-                                          )}
-                                          {dest.aiInsight && (
-                                            <div className="text-xs text-green-700 mt-2 bg-green-50 p-2 rounded-lg flex items-start gap-2 border border-green-100">
-                                              <Lightbulb className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                              <span><span className="font-medium">Insider tip:</span> {dest.aiInsight}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </Button>
-                                  ))}
-                                </div>
-                              )}
-                              
-                              {!isLoadingSuggestions && !suggestionsError && aiSuggestions.length === 0 && searchQuery.length >= 2 && (
-                                <div className="text-center py-8">
-                                  <Globe className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                  <div className="text-sm text-gray-600 font-medium mb-1">No destinations found</div>
-                                  <div className="text-xs text-gray-500">
-                                    Try: "Goa", "Jaipur", "beaches", "mountains", or "heritage sites"
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          )}
-                          
-                          {formData.interests.length > 0 && generateAISuggestions.length > 0 && (
-                            <>
-                              <Separator />
-                              <div className="flex items-center gap-2 text-sm font-medium text-blue-600">
-                                <Target className="w-4 h-4" />
-                                Based on your interests
-                              </div>
-                              <div className="grid gap-2">
-                                {generateAISuggestions.filter(s => s.type === 'destination').slice(0, 3).map((suggestion, index) => (
-                                  <Button
-                                    key={index}
-                                    variant="ghost"
-                                    className="justify-start h-auto p-3 hover:bg-blue-50"
-                                    onClick={() => {
-                                      setFormData(prev => ({ ...prev, destination: suggestion.content }));
-                                      setShowSuggestions(false);
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-3 w-full">
-                                      <Star className="w-4 h-4 text-blue-500" />
-                                      <div className="text-left flex-1">
-                                        <div className="font-medium">{suggestion.content}</div>
-                                        <div className="text-sm text-gray-500">{suggestion.reason}</div>
-                                      </div>
-                                      {suggestion.popularity && (
-                                        <Badge variant="secondary">{Math.round(suggestion.popularity)}% match</Badge>
-                                      )}
-                                    </div>
-                                  </Button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
                 </div>
 
-                {/* Selected Destination Display */}
-                {formData.destination && (
-                  <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                            <MapPin className="w-5 h-5 text-purple-600" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-purple-900">{formData.destination}</div>
-                            <div className="text-sm text-purple-700">
-                              {getDynamicContent.personalizedTips[0] || 'Great choice!'}
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setFormData(prev => ({ ...prev, destination: '' }))}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                {!isSearchPanelOpen && (
+                  <p className="flex items-center gap-1 text-xs text-gray-500">
+                    <Sparkles className="h-3 w-3 text-purple-500" />
+                    Search by city, interest (beaches, heritage), or activity
+                  </p>
+                )}
+
+                {isSearchPanelOpen && (
+                  <div className="overflow-hidden rounded-xl border border-purple-200 bg-white shadow-lg">
+                    <div className="flex items-center justify-between border-b border-purple-100 bg-purple-50/80 px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-purple-700">
+                        <Sparkles className={`h-4 w-4 ${isLoadingSuggestions ? 'animate-pulse' : ''}`} />
+                        {isLoadingSuggestions ? 'Finding destinations...' : `Results for "${searchQuery}"`}
+                        {!isLoadingSuggestions && suggestionsSource && (
+                          <Badge variant="secondary" className="h-5 bg-white text-[10px] text-purple-700">
+                            {suggestionsSource}
+                          </Badge>
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowSuggestions(false)}
+                        className="h-7 w-7 p-0"
+                        aria-label="Close suggestions"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="max-h-72 space-y-2 overflow-y-auto p-3">
+                      {isLoadingSuggestions && (
+                        <div className="flex items-center justify-center gap-3 py-10 text-sm text-purple-600">
+                          <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-200 border-t-purple-600" />
+                          Fetching live destination data...
+                        </div>
+                      )}
+
+                      {!isLoadingSuggestions && suggestionsError && (
+                        <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                          <Lightbulb className="h-4 w-4 shrink-0" />
+                          {suggestionsError}
+                        </div>
+                      )}
+
+                      {!isLoadingSuggestions && aiSuggestions.length > 0 && (
+                        <div className="space-y-2">
+                          {aiSuggestions.map((dest, index) => (
+                            <DestinationSuggestionRow
+                              key={`${dest.name}-${index}`}
+                              dest={dest}
+                              onSelect={() => selectDestination(dest)}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {!isLoadingSuggestions && !suggestionsError && aiSuggestions.length === 0 && (
+                        <div className="py-8 text-center">
+                          <Globe className="mx-auto mb-2 h-10 w-10 text-gray-300" />
+                          <p className="text-sm font-medium text-gray-600">No destinations found</p>
+                          <p className="mt-1 text-xs text-gray-500">Try Goa, Jaipur, beaches, or heritage sites</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {formData.destination && !isSearchPanelOpen && (
+                  <div className="flex items-center justify-between rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50 px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-100">
+                        <MapPin className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-purple-900">{formData.destination}</div>
+                        <div className="truncate text-sm text-purple-700">
+                          {getDynamicContent.personalizedTips[0] || 'Great choice!'}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, destination: '', destinationMeta: null }));
+                        setSearchQuery('');
+                      }}
+                      className="shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
 
               {/* Date Selection */}
+              {!isSearchPanelOpen && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <Label className="text-base font-medium text-gray-700">Start Date</Label>
@@ -671,6 +691,7 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
                   )}
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -834,9 +855,34 @@ export function SmartInputWizard({ onPlanTrip, isGenerating = false, selectedLan
           {currentStep === 2 && (
             <div className="space-y-8">
               <div className="text-center">
-                <h3 className="text-2xl font-semibold mb-2">What excites you?</h3>
-                <p className="text-gray-600">Select your interests to get personalized recommendations</p>
+                <h3 className="text-2xl font-semibold mb-2">
+                  What excites you in {formData.destination || 'your trip'}?
+                </h3>
+                <p className="text-gray-600">
+                  Your {formData.destination || 'destination'} itinerary will be built around these interests
+                </p>
               </div>
+
+              {formData.destination && (
+                <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
+                  <CardContent className="flex flex-wrap items-center gap-4 p-4 text-sm">
+                    <div className="flex items-center gap-2 font-medium text-purple-900">
+                      <MapPin className="h-4 w-4" />
+                      {formData.destination}
+                    </div>
+                    {formData.startDate && formData.endDate && (
+                      <div className="flex items-center gap-2 text-purple-800">
+                        <CalendarIcon className="h-4 w-4" />
+                        {format(formData.startDate, 'MMM d')} – {format(formData.endDate, 'MMM d, yyyy')}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-purple-800">
+                      <IndianRupee className="h-4 w-4" />
+                      ₹{formData.budget.toLocaleString()} · {formData.travelers} traveler{formData.travelers > 1 ? 's' : ''}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {interestOptions.map((interest) => (

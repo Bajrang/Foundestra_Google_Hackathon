@@ -113,12 +113,9 @@ function AppContent() {
     setState('generating');
 
     try {
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 25000)
-      );
-
-      const apiPromise = apiCall('generate-itinerary', {
+      await apiCall('generate-itinerary', {
         body: tripData,
+        timeout: 45000,
         onSuccess: (data) => {
           setItinerary(data.itinerary);
           setItineraryId(data.itineraryId);
@@ -141,12 +138,8 @@ function AppContent() {
         },
         onError: () => {
           setState('planning');
-          toast.error('Failed to generate itinerary. Please try again.');
         }
       });
-
-      await Promise.race([apiPromise, timeoutPromise]);
-      
     } catch (error) {
       console.error('Trip planning error:', error);
       setState('planning');

@@ -16,7 +16,8 @@ import {
   Key,
   Settings
 } from 'lucide-react';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { publicAnonKey } from '../../utils/supabase/info';
+import { getApiUrl } from '../../utils/api';
 
 interface APIConfig {
   status: string;
@@ -67,7 +68,7 @@ export function APIStatusPage() {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f7922768/vertex-config`,
+        getApiUrl('vertex-config'),
         {
           headers: {
             'Authorization': `Bearer ${publicAnonKey}`
@@ -87,7 +88,7 @@ export function APIStatusPage() {
     setTesting(true);
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f7922768/test-vertexai`,
+        getApiUrl('test-vertexai'),
         {
           headers: {
             'Authorization': `Bearer ${publicAnonKey}`

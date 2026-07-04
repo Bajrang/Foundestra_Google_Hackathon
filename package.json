@@ -50,15 +50,19 @@
             "vaul": "^1.1.2"
       },
       "devDependencies": {
+            "@hono/node-server": "^2.0.8",
             "@types/node": "^20.10.0",
             "@types/react": "^19.2.2",
             "@types/react-dom": "^19.2.2",
             "@vitejs/plugin-react-swc": "^3.10.2",
+            "dotenv": "^17.4.2",
             "typescript": "^5.3.3",
             "vite": "^6.4.1"
       },
       "scripts": {
             "dev": "vite",
+            "dev:server": "node server/local-server.mjs",
+            "dev:all": "npm run dev:server & npm run dev",
             "build": "vite build"
       }
 }

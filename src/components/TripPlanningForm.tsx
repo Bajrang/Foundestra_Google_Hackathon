@@ -70,6 +70,16 @@ export interface TripData {
   // Booking Preferences
   flexibleDates: boolean;
   bookingPreference: string; // immediate, review_first, later
+
+  // Live destination metadata from search selection
+  destinationMeta?: {
+    state?: string;
+    coordinates?: { lat: number; lon: number };
+    googlePlaceId?: string;
+    tags?: string[];
+    highlights?: string[];
+    dataSource?: string;
+  };
 }
 
 const interestOptions = [

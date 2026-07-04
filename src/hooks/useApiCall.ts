@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { publicAnonKey } from '../utils/supabase/info';
+import { getApiUrl } from '../utils/api';
 
 interface ApiCallOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -38,7 +39,7 @@ export function useApiCall() {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-f7922768/${endpoint}`,
+        getApiUrl(endpoint),
         {
           method,
           headers: {

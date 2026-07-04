@@ -19,7 +19,7 @@ import {
   CreditCard, 
   Calendar, 
   Users, 
-  DollarSign,
+  IndianRupee,
   CheckCircle,
   Loader2,
   AlertTriangle,
@@ -366,7 +366,7 @@ export function BookingDialog({
               {/* Cost Breakdown */}
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <h4 className="font-semibold mb-3 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
+                  <IndianRupee className="w-4 h-4" />
                   Cost Breakdown
                 </h4>
                 <div className="space-y-2 text-sm">
@@ -529,7 +529,7 @@ export function BookingDialog({
                   </>
                 ) : (
                   <>
-                    <DollarSign className="w-4 h-4 mr-2" />
+                    <IndianRupee className="w-4 h-4 mr-2" />
                     Pay {formatCurrency(finalAmount)}
                   </>
                 )}

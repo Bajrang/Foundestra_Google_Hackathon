@@ -7,7 +7,7 @@ import { Progress } from './ui/progress';
 import { 
   Clock, 
   MapPin, 
-  DollarSign, 
+  IndianRupee,
   Calendar,
   Edit,
   BookOpen,
@@ -18,11 +18,12 @@ import {
   Users,
   Plane,
   Home,
-  CheckCircle,
   Share,
   Download,
   Sparkles,
-  TrendingUp
+  ExternalLink,
+  Target,
+  Zap
 } from 'lucide-react';
 
 export interface Activity {
@@ -38,6 +39,8 @@ export interface Activity {
   isBookable: boolean;
   notes?: string;
   rating?: number;
+  reviewCount?: number;
+  googleReviewUrl?: string;
   hiddenGem?: boolean;
   difficulty?: string;
   culturalSignificance?: string;
@@ -71,8 +74,33 @@ export interface Itinerary {
     costPerNight: number;
     totalCost: number;
     rating: number;
+    reviewCount?: number;
+    address?: string;
+    googleReviewUrl?: string;
+    placeId?: string;
+    source?: string;
+    nights?: number;
     bookingOfferId: string;
   }>;
+  tripInputs?: {
+    destination: string;
+    dates: { start: string; end: string };
+    budget: number;
+    travelers: number;
+    interests: string[];
+    travel_style: string;
+    priority: string;
+    transport: string[];
+  };
+  preferencesSummary?: {
+    travelStyle: string;
+    travelStyleLabel: string;
+    priority: string;
+    priorityLabel: string;
+    interests: string[];
+  };
+  dataSources?: string[];
+  warnings?: string[];
   transport?: Array<{
     types: string[];
     totalCost: number;
@@ -107,8 +135,9 @@ export function ItineraryDisplay({
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: itinerary.currency,
-      minimumFractionDigits: 0
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -205,6 +234,65 @@ export function ItineraryDisplay({
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      {/* Trip inputs & personalization summary */}
+      {(itinerary.preferencesSummary || itinerary.tripInputs) && (
+        <Card className="border-blue-200 bg-gradient-to-r from-blue-50/60 to-indigo-50/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Target className="w-5 h-5 text-blue-600" />
+              Your Trip Preferences
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              {itinerary.preferencesSummary && (
+                <>
+                  <Badge variant="outline" className="bg-white gap-1 py-1.5">
+                    <Zap className="w-3 h-3" />
+                    {itinerary.preferencesSummary.travelStyleLabel}
+                  </Badge>
+                  <Badge variant="outline" className="bg-white gap-1 py-1.5">
+                    <Target className="w-3 h-3" />
+                    {itinerary.preferencesSummary.priorityLabel}
+                  </Badge>
+                  {itinerary.preferencesSummary.interests.map((interest) => (
+                    <Badge key={interest} variant="secondary" className="capitalize bg-white/80">
+                      {interest}
+                    </Badge>
+                  ))}
+                </>
+              )}
+              {itinerary.tripInputs && (
+                <div className="w-full mt-2 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-muted-foreground">
+                  <div><span className="font-medium text-gray-700">Budget:</span> ₹{itinerary.tripInputs.budget.toLocaleString()}</div>
+                  <div><span className="font-medium text-gray-700">Travelers:</span> {itinerary.tripInputs.travelers}</div>
+                  <div><span className="font-medium text-gray-700">Transport:</span> {itinerary.tripInputs.transport.join(', ')}</div>
+                  <div><span className="font-medium text-gray-700">Dates:</span> {itinerary.tripInputs.dates.start} → {itinerary.tripInputs.dates.end}</div>
+                </div>
+              )}
+              {itinerary.dataSources && itinerary.dataSources.length > 0 && (
+                <p className="w-full text-xs text-muted-foreground mt-1">
+                  Data sources: {itinerary.dataSources.join(' · ')}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {itinerary.warnings && itinerary.warnings.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-4">
+            {itinerary.warnings.map((warning, i) => (
+              <p key={i} className="text-sm text-amber-800 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                {warning}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Enhanced Header with Cost Breakdown */}
       <Card className="border-2 border-primary/20">
         <CardHeader>
@@ -361,15 +449,38 @@ export function ItineraryDisplay({
                       <div className="flex items-center gap-1">
                         <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                         <span className="text-sm">{acc.rating}</span>
+                        {acc.reviewCount != null && acc.reviewCount > 0 && (
+                          <span className="text-xs text-muted-foreground">({acc.reviewCount.toLocaleString()} reviews)</span>
+                        )}
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground capitalize">{acc.type} accommodation</p>
+                    {acc.address && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {acc.address}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-sm">
-                        {formatCurrency(acc.costPerNight)}/night × {itinerary.totalDays - 1} nights
+                        {formatCurrency(acc.costPerNight)}/night × {acc.nights ?? itinerary.totalDays - 1} nights
                       </span>
                       <span className="font-semibold">{formatCurrency(acc.totalCost)}</span>
                     </div>
+                    {acc.googleReviewUrl && (
+                      <a
+                        href={acc.googleReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        View on Google Maps & Reviews
+                      </a>
+                    )}
+                    {acc.source && (
+                      <Badge variant="outline" className="text-[10px]">{acc.source}</Badge>
+                    )}
                   </div>
                 ))}
               </CardContent>
@@ -455,6 +566,17 @@ export function ItineraryDisplay({
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <MapPin className="w-4 h-4" />
                       {activity.location}
+                      {activity.googleReviewUrl && (
+                        <a
+                          href={activity.googleReviewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 inline-flex items-center gap-0.5 text-blue-600 hover:underline"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Google
+                        </a>
+                      )}
                     </div>
                     
                     <p className="text-sm text-muted-foreground">
@@ -479,7 +601,7 @@ export function ItineraryDisplay({
                     )}
                     
                     <div className="flex items-center gap-1">
-                      <DollarSign className="w-4 h-4" />
+                      <IndianRupee className="w-4 h-4" />
                       <span className="font-semibold">
                         {formatCurrency(activity.estimatedCost)}
                       </span>

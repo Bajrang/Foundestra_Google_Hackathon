@@ -18,7 +18,7 @@ import {
   CreditCard, 
   Calendar, 
   Users, 
-  DollarSign,
+  IndianRupee,
   CheckCircle,
   Loader2,
   Home,
@@ -77,8 +77,9 @@ export function CompleteBookingDialog({
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: itinerary.currency,
-      minimumFractionDigits: 0
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -159,7 +160,7 @@ export function CompleteBookingDialog({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
+              <IndianRupee className="w-4 h-4" />
               Cost Breakdown
             </CardTitle>
           </CardHeader>
@@ -604,7 +605,7 @@ export function CompleteBookingDialog({
                 </>
               ) : step === 'payment' ? (
                 <>
-                  <DollarSign className="w-4 h-4 mr-2" />
+                  <IndianRupee className="w-4 h-4 mr-2" />
                   Pay {formatCurrency(getTotalSavings())}
                 </>
               ) : (
