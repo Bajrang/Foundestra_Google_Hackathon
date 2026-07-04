@@ -1,0 +1,20 @@
+{
+  "name": "foundestra-travel-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node local-server.mjs",
+    "serve": "functions-framework --target=foundestraTravelApi --port=8080"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.2",
+    "@hono/node-server": "^2.0.8",
+    "dotenv": "^17.4.2",
+    "hono": "^4.6.12"
+  }
+}

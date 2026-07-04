@@ -11,6 +11,27 @@ let serviceAccountKey = null;
 let accessToken = null;
 let tokenExpiry = 0;
 
+export function isRunningOnGCP() {
+  return !!(process.env.K_SERVICE || process.env.FUNCTION_TARGET || process.env.GCLOUD_PROJECT);
+}
+
+async function getAccessTokenFromMetadata() {
+  if (!isRunningOnGCP()) return null;
+  try {
+    const res = await fetch(
+      'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
+      { headers: { 'Metadata-Flavor': 'Google' } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    accessToken = data.access_token;
+    tokenExpiry = Date.now() + ((data.expires_in || 3600) - 60) * 1000;
+    return accessToken;
+  } catch {
+    return null;
+  }
+}
+
 function loadServiceAccount() {
   if (serviceAccountKey) return serviceAccountKey;
 
@@ -44,6 +65,9 @@ function loadServiceAccount() {
 async function getAccessToken() {
   if (accessToken && Date.now() < tokenExpiry) return accessToken;
 
+  const metadataToken = await getAccessTokenFromMetadata();
+  if (metadataToken) return metadataToken;
+
   const key = loadServiceAccount();
   if (!key) throw new Error('Service account key not configured');
 
@@ -76,7 +100,7 @@ async function getAccessToken() {
 }
 
 export function isVertexAIConfigured() {
-  return !!loadServiceAccount() || !!process.env.VERTEX_AI_API_KEY;
+  return isRunningOnGCP() || !!loadServiceAccount() || !!process.env.VERTEX_AI_API_KEY;
 }
 
 export async function callVertexAI(prompt, systemInstruction) {
@@ -96,9 +120,9 @@ export async function callVertexAI(prompt, systemInstruction) {
     requestBody.systemInstruction = { parts: [{ text: systemInstruction }] };
   }
 
-  if (key) {
+  if (key || isRunningOnGCP()) {
     const token = await getAccessToken();
-    const projectId = key.project_id || process.env.GOOGLE_CLOUD_PROJECT || 'foundestra';
+    const projectId = key?.project_id || process.env.GOOGLE_CLOUD_PROJECT || 'foundestra';
     const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${LOCATION}/publishers/google/models/${MODEL}:generateContent`;
 
     const response = await fetch(endpoint, {

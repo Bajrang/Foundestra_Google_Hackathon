@@ -1,0 +1,7 @@
+.gcloudignore
+node_modules/
+.env
+.env.*
+*.log
+google-hackathon-sa-key.json
+local-server.mjs

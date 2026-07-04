@@ -63,6 +63,7 @@
             "dev": "vite",
             "dev:server": "node server/local-server.mjs",
             "dev:all": "npm run dev:server & npm run dev",
-            "build": "vite build"
+            "build": "vite build",
+            "deploy:api": "bash deploy/deploy-cloud-function.sh"
       }
 }
